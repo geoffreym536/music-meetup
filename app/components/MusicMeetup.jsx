@@ -295,6 +295,7 @@ const LOOK = ["Jam Session", "Open Mic", "Band", "Gigging", "Recording", "Teachi
 const MONS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DOWL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const EMOJ = { Guitar: "🎸", Bass: "🎸", Drums: "🥁", Keys: "🎹", Vocals: "🎵", Violin: "🎻", Sax: "🎷", Trumpet: "🎺", Other: "🎵" };
+const [applyingGig, setApplyingGig] = useState(null);
 
 const IH = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>;
 const IC = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" /></svg>;
@@ -305,6 +306,58 @@ const ILM = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.
 
 const getM = id => null;
 function useToggle(i = []) { const [l, s] = useState(i); return [l, v => s(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v])]; }
+
+function GigApplyForm({ gig, myBands, userProfile, onClose, onSuccess }) {
+    const [selectedBand, setSelectedBand] = useState(myBands[0]?.id || "solo");
+    const [message, setMessage] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    const submit = async () => {
+        setLoading(true);
+        try {
+            const { doc, updateDoc, arrayUnion } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            const band = myBands.find(b => b.id === selectedBand);
+            const application = {
+                applicantId: userProfile.uid,
+                applicantName: userProfile.name,
+                applicantEmoji: userProfile.emoji || "🎵",
+                bandId: selectedBand === "solo" ? null : selectedBand,
+                bandName: selectedBand === "solo" ? `${userProfile.name} (Solo)` : band?.name || "",
+                message: message.trim(),
+                appliedAt: new Date().toISOString(),
+                status: "pending",
+            };
+            await updateDoc(doc(db, "gigOpenings", gig.id), {
+                applications: arrayUnion(application),
+            });
+            onSuccess();
+        } catch (e) { alert(e.message); }
+        setLoading(false);
+    };
+
+    return (
+        <div>
+            <div className="fg">
+                <label className="fl">Applying As</label>
+                <select className="fsl" value={selectedBand} onChange={e => setSelectedBand(e.target.value)}>
+                    <option value="solo">{userProfile.name} (Solo Musician)</option>
+                    {myBands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+            </div>
+            <div className="fg">
+                <label className="fl">Message to Venue</label>
+                <textarea className="fta" placeholder="Tell the venue about your music, experience, and why you'd be a great fit..." value={message} onChange={e => setMessage(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                <button className="btn1" style={{ flex: 1, padding: 14 }} onClick={submit} disabled={loading}>
+                    {loading ? "Submitting..." : "Submit Application"}
+                </button>
+                <button className="btn2" style={{ padding: 14 }} onClick={onClose}>Cancel</button>
+            </div>
+        </div>
+    );
+}
 
 function ShowCard({ show, onInt }) {
     return (
@@ -691,7 +744,7 @@ function Bands({ bands, onB, onCreate, gigOpenings }) {
                                     <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--warm)", color: "var(--muted)", border: "1px solid var(--border)" }}>{g.type}</span>
                                 </div>
                                 {g.notes && <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5, marginBottom: 10 }}>{g.notes}</div>}
-                                <button className="btn1" style={{ width: "100%", padding: 10, fontSize: 13 }}>🎸 Apply for This Gig</button>
+                                <button className="btn1" style={{ width: "100%", padding: 10, fontSize: 13 }} onClick={() => setApplyingGig(g)}>🎸 Apply for This Gig</button>
                             </div>
                         </div>
                     ))}
@@ -1080,6 +1133,24 @@ export default function App({ user, profile }) {
                         setTab("bands");
                     } catch (e) { alert(e.message); }
                 }} />}
+                {applyingGig && (
+                    <div className="ov" onClick={() => setApplyingGig(null)}><div className="mod" onClick={e => e.stopPropagation()}>
+                        <div className="mhnd" />
+                        <div className="mtit">Apply for Gig</div>
+                        <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+                            <div style={{ fontFamily: "Playfair Display,serif", fontSize: 16, color: "var(--parchment)", marginBottom: 2 }}>{applyingGig.name}</div>
+                            <div style={{ fontSize: 12, color: "var(--al)" }}>📍 {applyingGig.venueName} · 📅 {applyingGig.month} {applyingGig.day}</div>
+                            {applyingGig.pay && <div style={{ fontSize: 12, color: "var(--sage)", marginTop: 4 }}>💰 {applyingGig.pay}</div>}
+                        </div>
+                        <GigApplyForm
+                            gig={applyingGig}
+                            myBands={bands.filter(b => b.isMyBand)}
+                            userProfile={currentProfile}
+                            onClose={() => setApplyingGig(null)}
+                            onSuccess={() => { setApplyingGig(null); doToast("Application submitted!"); }}
+                        />
+                    </div></div>
+                )}
                 {showEdit && (
                     <div className="ov" onClick={() => setShowEdit(false)}><div className="mod" onClick={e => e.stopPropagation()}>
                         <div className="mhnd" /><div className="mtit">Edit Your Profile</div>

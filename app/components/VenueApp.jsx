@@ -156,8 +156,58 @@ export default function VenueApp({ user, profile }) {
 }
 
 function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
+    const [viewingGig, setViewingGig] = useState(null);
     const openGigs = gigOpenings.filter(g => g.status === "open");
     const pendingApps = gigOpenings.reduce((n, g) => n + (g.applications?.length || 0), 0);
+
+    if (viewingGig) return (
+        <div className="vpg">
+            <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid var(--border)" }}>
+                <button onClick={() => setViewingGig(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--ink)" }}>‹</button>
+                <div style={{ fontFamily: "Playfair Display,serif", fontSize: 18 }}>{viewingGig.name}</div>
+            </div>
+            <div style={{ padding: "16px 20px" }}>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>📅 {viewingGig.month} {viewingGig.day} · 💰 {viewingGig.pay || "Negotiable"}</div>
+                {(!viewingGig.applications || viewingGig.applications.length === 0) ? (
+                    <div className="es"><div className="ei">📬</div><div className="et">No applications yet</div><div className="ed">Share this opening with local musicians to get applications.</div></div>
+                ) : viewingGig.applications.map((app, i) => (
+                    <div key={i} style={{ background: "#fff", borderRadius: 12, border: "1px solid var(--border)", padding: "14px 16px", marginBottom: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                            <div>
+                                <div style={{ fontWeight: 500, fontSize: 15 }}>{app.applicantEmoji} {app.bandName || app.applicantName}</div>
+                                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Applied {new Date(app.appliedAt).toLocaleDateString()}</div>
+                            </div>
+                            <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: app.status === "accepted" ? "#e8f5e9" : app.status === "declined" ? "#fce4ec" : "#fef3e2", color: app.status === "accepted" ? "var(--sage)" : app.status === "declined" ? "var(--rust)" : "var(--amber)", border: "1px solid", borderColor: app.status === "accepted" ? "#a5d6a7" : app.status === "declined" ? "#f48fb1" : "#f5dba0" }}>{app.status}</span>
+                        </div>
+                        {app.message && <div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "var(--warm)", borderRadius: 8 }}>{app.message}</div>}
+                        {app.status === "pending" && (
+                            <div style={{ display: "flex", gap: 8 }}>
+                                <button className="vbtn1" style={{ flex: 1, fontSize: 12 }} onClick={async () => {
+                                    try {
+                                        const { doc, updateDoc } = await import("firebase/firestore");
+                                        const { db } = await import("../../lib/firebase");
+                                        const updated = viewingGig.applications.map((a, j) => j === i ? { ...a, status: "accepted" } : a);
+                                        await updateDoc(doc(db, "gigOpenings", viewingGig.id), { applications: updated, status: "booked" });
+                                        setViewingGig({ ...viewingGig, applications: updated, status: "booked" });
+                                    } catch (e) { alert(e.message); }
+                                }}>✓ Accept</button>
+                                <button className="vbtn2" style={{ flex: 1, fontSize: 12 }} onClick={async () => {
+                                    try {
+                                        const { doc, updateDoc } = await import("firebase/firestore");
+                                        const { db } = await import("../../lib/firebase");
+                                        const updated = viewingGig.applications.map((a, j) => j === i ? { ...a, status: "declined" } : a);
+                                        await updateDoc(doc(db, "gigOpenings", viewingGig.id), { applications: updated });
+                                        setViewingGig({ ...viewingGig, applications: updated });
+                                    } catch (e) { alert(e.message); }
+                                }}>✗ Decline</button>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     return (
         <div className="vpg">
             <div className="vhero">
@@ -173,21 +223,21 @@ function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
             <div className="vsh"><div className="vst">Quick Actions</div></div>
             <div className="brow">
                 <button className="vbtn1" onClick={onAddGig}>🎸 Post Gig Opening</button>
-                <button className="vbtn2">📅 Add Show</button>
             </div>
             <div className="vsh"><div className="vst">Your Gig Openings</div></div>
-            {openGigs.length === 0 ? (
+            {gigOpenings.length === 0 ? (
                 <div className="es"><div className="ei">🎵</div><div className="et">No gig openings yet</div><div className="ed">Post your first opening to start receiving band applications.</div></div>
-            ) : openGigs.map(g => (
-                <div key={g.id} className="vcard">
+            ) : gigOpenings.map(g => (
+                <div key={g.id} className="vcard" onClick={() => setViewingGig(g)} style={{ cursor: "pointer" }}>
                     <div className="vcardt">
                         <div className="vcardtitle">{g.name}</div>
-                        <div className="vcardsub">📅 {g.date} · 💰 {g.pay || "Negotiable"}</div>
+                        <div className="vcardsub">📅 {g.month} {g.day} · 💰 {g.pay || "Negotiable"}</div>
                     </div>
                     <div className="vcardb">
                         <span className="vtag vtag-a">{g.type}</span>
                         {g.allAges && <span className="vtag vtag-g">All Ages</span>}
                         <span className="vtag vtag-r">{g.applications?.length || 0} applicants</span>
+                        <span className={`vtag ${g.status === "booked" ? "vtag-g" : "vtag-a"}`}>{g.status}</span>
                     </div>
                 </div>
             ))}
