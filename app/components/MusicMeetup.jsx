@@ -847,7 +847,7 @@ export default function App({user, profile}){
         setSavingProfile(true);
         try {
             const {doc, setDoc} = await import("firebase/firestore");
-            const {db} = await import("../lib/firebase");
+            const {db} = await import("../../lib/firebase");
             const EMAP = {Guitar:"🎸",Bass:"🎸",Drums:"🥁",Keys:"🎹",Violin:"🎻",Sax:"🎷",Vocals:"🎵",Trumpet:"🎺",Banjo:"🪕",Mandolin:"🎸",Other:"🎵"};
             const updated = {...currentProfile, name:editName, instrument:editInstrument, emoji:EMAP[editInstrument]||"🎵", genres:editGenres, looking:editLooking, about:editAbout};
             await setDoc(doc(db, "users", user.uid), updated);
