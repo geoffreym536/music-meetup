@@ -874,6 +874,20 @@ export default function App({user, profile}){
         fetchEvents();
     }, []);
 
+    useEffect(() => {
+        const fetchBands = async () => {
+            try {
+                const { collection, getDocs } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const snap = await getDocs(collection(db, "bands"));
+                setBands(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+            } catch(e) {
+                console.error(e);
+            }
+        };
+        fetchBands();
+    }, []);
+
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
     const msgMusician = m => { const ex = convs.find(c => c.mid === m.id); if (ex) { openChat(ex.id); return; } const nc = { id: Date.now(), mid: m.id, unread: false, messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }] }; setConvs(p => [...p, nc]); setConvId(nc.id); setTab("messages"); };
@@ -915,7 +929,7 @@ export default function App({user, profile}){
                         <div><div className="logo">Music<span>Meetup</span></div><div className="hsub">Grand Junction, CO</div></div>
                         <div className="avbtn" onClick={() => setTab("profile")}>{currentProfile?.emoji||"🎵"}</div>
                     </div>
-                    {tab === "home" && <Home musicians={realMusicians.length > 0 ? realMusicians : MUSICIANS} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
+                    {tab === "home" && <Home musicians={realMusicians}
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
                     {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
@@ -941,7 +955,16 @@ export default function App({user, profile}){
                         doToast("Event added for everyone!");
                     } catch(e) { alert(e.message); }
                 }} />}
-                {showCB && <CreateBandModal onClose={() => setShowCB(false)} onCreate={d => { setBands(p => [...p, { ...d, id: Date.now() }]); doToast("Band profile created!"); setTab("bands"); }} />}
+                {showCB && <CreateBandModal onClose={() => setShowCB(false)} onCreate={async d => {
+                    try {
+                        const { collection, addDoc } = await import("firebase/firestore");
+                        const { db } = await import("../../lib/firebase");
+                        const ref = await addDoc(collection(db, "bands"), { ...d, createdAt: new Date().toISOString(), createdBy: user.uid });
+                        setBands(p => [...p, { ...d, id: ref.id }]);
+                        doToast("Band profile created!");
+                        setTab("bands");
+                    } catch(e) { alert(e.message); }
+                }} />}
                 {showEdit && (
                     <div className="ov" onClick={() => setShowEdit(false)}><div className="mod" onClick={e => e.stopPropagation()}>
                         <div className="mhnd" /><div className="mtit">Edit Your Profile</div>
