@@ -793,22 +793,7 @@ function BModal({ b, onClose }) {
     );
 }
 
-function AgeGate({ onSelect }) {
-    return (
-        <div className="ag">
-            <div className="aglo">Music<span>Meetup</span></div>
-            <div className="agsub">Connect · Jam · Perform</div>
-            <div className="agq">How old are you?</div>
-            <div className="agh">We use this to keep younger musicians safe and connect you with the right people.</div>
-            <button className="agb agba" onClick={() => onSelect(false)}>18 or older</button>
-            <button className="agb agbt" onClick={() => onSelect(true)}>Under 18</button>
-            <div className="agn">Under-18 users have Safe Mode enabled automatically.</div>
-        </div>
-    );
-}
-
 export default function App({user, profile}){
-    const [ageSet, setAgeSet] = useState(false);
     const [minor, setMinor] = useState(false);
     const [tab, setTab] = useState("home");
     const [filter, setFilter] = useState("All");
@@ -890,6 +875,59 @@ export default function App({user, profile}){
         fetchBands();
     }, []);
 
+    useEffect(() => {
+        const listenForMessages = async () => {
+            try {
+                const { collection, query, where, onSnapshot, orderBy, getDocs } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                
+                // Load existing messages
+                const q = query(collection(db, "messages"), where("senderId", "==", user.uid), orderBy("timestamp", "asc"));
+                const snap = await getDocs(q);
+                const msgMap = {};
+                snap.docs.forEach(doc => {
+                    const msg = doc.data();
+                    if (!msgMap[msg.recipientId]) msgMap[msg.recipientId] = [];
+                    msgMap[msg.recipientId].push({ id: doc.id, from: "me", text: msg.text, time: "Just now", type: "text" });
+                });
+                
+                // Load received messages
+                const qRec = query(collection(db, "messages"), where("recipientId", "==", user.uid), orderBy("timestamp", "asc"));
+                const snapRec = await getDocs(qRec);
+                snapRec.docs.forEach(doc => {
+                    const msg = doc.data();
+                    if (!msgMap[msg.senderId]) msgMap[msg.senderId] = [];
+                    msgMap[msg.senderId].push({ id: doc.id, from: "them", text: msg.text, time: "Just now", type: "text" });
+                });
+                
+                // Listen for new incoming messages
+                const qListener = query(
+                    collection(db, "messages"),
+                    where("recipientId", "==", user.uid),
+                    orderBy("timestamp", "asc")
+                );
+                const unsubscribe = onSnapshot(qListener, (snap) => {
+                    snap.docs.forEach(doc => {
+                        const msg = doc.data();
+                        setConvs(p => {
+                            const ex = p.find(c => c.mid === msg.senderId);
+                            if (!ex) return p;
+                            const alreadyExists = ex.messages.some(m => m.id === doc.id);
+                            if (alreadyExists) return p;
+                            return p.map(c => c.mid === msg.senderId 
+                                ? { ...c, messages: [...c.messages, { id: doc.id, from: "them", text: msg.text, time: "Just now", type: "text" }], unread: true }
+                                : c);
+                        });
+                    });
+                });
+                return () => unsubscribe();
+            } catch(e) {
+                console.error("Error listening for messages:", e);
+            }
+        };
+        listenForMessages();
+    }, [user.uid]);
+
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
     const msgMusician = m => {
@@ -906,9 +944,25 @@ export default function App({user, profile}){
         setConvId(nc.id);
         setTab("messages");
     };
-    const sendMsg = (cid, txt) => {
+    const sendMsg = async (cid, txt) => {
         setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", text: txt, time: "Just now", type: "text" }] } : c));
-        setTimeout(() => { const replies = ["Sounds great! I'm free this weekend.", "Nice! What style are you into?", "Let's do it! I know a good spot.", "Yeah for sure, hit me up Friday.", "That works for me 👍"]; setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now() + 1, from: "them", text: replies[Math.floor(Math.random() * replies.length)], time: "Just now", type: "text" }] } : c)); }, 1200);
+        try {
+            const { collection, addDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            const conv = convs.find(c => c.id === cid);
+            if (conv) {
+                await addDoc(collection(db, "messages"), {
+                    conversationId: cid,
+                    senderId: user.uid,
+                    senderName: currentProfile?.name || "Unknown",
+                    recipientId: conv.mid,
+                    text: txt.trim(),
+                    timestamp: new Date().toISOString(),
+                });
+            }
+        } catch (e) {
+            console.error("Error sending message:", e);
+        }
     };
     const sendJam = (cid, proposed) => setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", type: "jam_request", proposed, time: "Just now", status: "pending" }] } : c));
 
@@ -930,8 +984,6 @@ export default function App({user, profile}){
     const uc = convs.filter(c => c.unread).length;
     const activeConv = convs.find(c => c.id === convId);
     const activeM = activeConv ? activeConv.musician : null;
-
-    if (!ageSet) return (<><style>{S}</style><AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} /></>);
 
     return (
         <>

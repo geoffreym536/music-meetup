@@ -44,6 +44,7 @@ export default function ProfileSetup({ onComplete }) {
   const [location, setLocation] = useState("Grand Junction, CO");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   const save = async () => {
     if (!name.trim()) { setError("Please enter your name"); return; }
@@ -77,54 +78,66 @@ export default function ProfileSetup({ onComplete }) {
   return (
     <>
       <style>{S}</style>
-      <div className="ps">
-        <div className="ps-hero">
-          <div className="ps-title">Welcome to MusicMeetup</div>
-          <div className="ps-sub">Tell us about yourself so musicians can find you</div>
+      {!ageConfirmed ? (
+        <div style={{position:"fixed",inset:0,background:"#1a1208",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,color:"#e6a84a",marginBottom:6}}>Music<span style={{fontStyle:"italic",color:"#f5efe6"}}>Meetup</span></div>
+          <div style={{fontSize:11,color:"#7a6a58",letterSpacing:2,textTransform:"uppercase",marginBottom:40}}>Connect · Jam · Perform</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#f5efe6",marginBottom:8}}>How old are you?</div>
+          <div style={{fontSize:13,color:"#7a6a58",marginBottom:32,lineHeight:1.5}}>We use this to keep younger musicians safe and connect you with the right people.</div>
+          <button style={{width:"100%",padding:15,background:"#c8852a",color:"#fff",border:"none",borderRadius:12,fontSize:16,fontWeight:500,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",marginBottom:10}} onClick={() => setAgeConfirmed(true)}>18 or older</button>
+          <button style={{width:"100%",padding:15,background:"#1565c0",color:"#fff",border:"none",borderRadius:12,fontSize:16,fontWeight:500,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={() => window.location.href="/"}>Under 18</button>
+          <div style={{fontSize:11,color:"#7a6a58",marginTop:16,lineHeight:1.6}}>Under-18 users have Safe Mode enabled automatically.</div>
         </div>
-        <div className="ps-body">
-          {error && <div className="ps-err">{error}</div>}
-          <div className="ps-sec">
-            <label className="ps-label">Your Name *</label>
-            <input className="ps-input" placeholder="e.g. Geoff M." value={name} onChange={e => setName(e.target.value)} />
+      ) : (
+        <div className="ps">
+          <div className="ps-hero">
+            <div className="ps-title">Welcome to MusicMeetup</div>
+            <div className="ps-sub">Tell us about yourself so musicians can find you</div>
           </div>
-          <div className="ps-sec">
-            <label className="ps-label">Primary Instrument *</label>
-            <div className="ps-chips">
-              {INSTS.map(i => <div key={i} className={`ps-chip ${instrument === i ? "on" : ""}`} onClick={() => setInstrument(i)}>{i}</div>)}
+          <div className="ps-body">
+            {error && <div className="ps-err">{error}</div>}
+            <div className="ps-sec">
+              <label className="ps-label">Your Name *</label>
+              <input className="ps-input" placeholder="e.g. Geoff M." value={name} onChange={e => setName(e.target.value)} />
             </div>
-          </div>
-          <div className="ps-sec">
-            <label className="ps-label">Genres *</label>
-            <div className="ps-chips">
-              {GENRES.map(g => <div key={g} className={`ps-chip ${genres.includes(g) ? "on" : ""}`} onClick={() => setGenres(toggle(genres, g))}>{g}</div>)}
+            <div className="ps-sec">
+              <label className="ps-label">Primary Instrument *</label>
+              <div className="ps-chips">
+                {INSTS.map(i => <div key={i} className={`ps-chip ${instrument === i ? "on" : ""}`} onClick={() => setInstrument(i)}>{i}</div>)}
+              </div>
             </div>
-          </div>
-          <div className="ps-sec">
-            <label className="ps-label">Looking For</label>
-            <div className="ps-chips">
-              {LOOKING.map(l => <div key={l} className={`ps-chip ${looking.includes(l) ? "on" : ""}`} onClick={() => setLooking(toggle(looking, l))}>{l}</div>)}
+            <div className="ps-sec">
+              <label className="ps-label">Genres *</label>
+              <div className="ps-chips">
+                {GENRES.map(g => <div key={g} className={`ps-chip ${genres.includes(g) ? "on" : ""}`} onClick={() => setGenres(toggle(genres, g))}>{g}</div>)}
+              </div>
             </div>
-          </div>
-          <div className="ps-sec">
-            <label className="ps-label">Available Days</label>
-            <div className="ps-days">
-              {DAYS.map(d => <div key={d} className={`ps-day ${availability.includes(d) ? "on" : ""}`} onClick={() => setAvailability(toggle(availability, d))}>{d}</div>)}
+            <div className="ps-sec">
+              <label className="ps-label">Looking For</label>
+              <div className="ps-chips">
+                {LOOKING.map(l => <div key={l} className={`ps-chip ${looking.includes(l) ? "on" : ""}`} onClick={() => setLooking(toggle(looking, l))}>{l}</div>)}
+              </div>
             </div>
+            <div className="ps-sec">
+              <label className="ps-label">Available Days</label>
+              <div className="ps-days">
+                {DAYS.map(d => <div key={d} className={`ps-day ${availability.includes(d) ? "on" : ""}`} onClick={() => setAvailability(toggle(availability, d))}>{d}</div>)}
+              </div>
+            </div>
+            <div className="ps-sec">
+              <label className="ps-label">Location</label>
+              <input className="ps-input" value={location} onChange={e => setLocation(e.target.value)} />
+            </div>
+            <div className="ps-sec">
+              <label className="ps-label">About You</label>
+              <textarea className="ps-input" style={{minHeight:80,resize:"vertical"}} placeholder="Tell other musicians about your style, experience, and what you're looking for..." value={about} onChange={e => setAbout(e.target.value)} />
+            </div>
+            <button className="ps-btn" onClick={save} disabled={loading}>
+              {loading ? "Saving..." : "Complete Profile →"}
+            </button>
           </div>
-          <div className="ps-sec">
-            <label className="ps-label">Location</label>
-            <input className="ps-input" value={location} onChange={e => setLocation(e.target.value)} />
-          </div>
-          <div className="ps-sec">
-            <label className="ps-label">About You</label>
-            <textarea className="ps-input" style={{minHeight:80,resize:"vertical"}} placeholder="Tell other musicians about your style, experience, and what you're looking for..." value={about} onChange={e => setAbout(e.target.value)} />
-          </div>
-          <button className="ps-btn" onClick={save} disabled={loading}>
-            {loading ? "Saving..." : "Complete Profile →"}
-          </button>
         </div>
-      </div>
+      )}
     </>
   );
 }
