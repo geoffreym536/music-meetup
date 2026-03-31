@@ -314,10 +314,10 @@ function GigApplyForm({ gig, myBands, userProfile, onClose, onSuccess }) {
     const submit = async () => {
         setLoading(true);
         try {
-            const { doc, updateDoc, arrayUnion } = await import("firebase/firestore");
+            const { doc, setDoc } = await import("firebase/firestore");
             const { db } = await import("../../lib/firebase");
             const band = myBands.find(b => b.id === selectedBand);
-            const application = {
+            await setDoc(doc(db, "gigOpenings", gig.id, "applications", userProfile.uid), {
                 applicantId: userProfile.uid,
                 applicantName: userProfile.name,
                 applicantEmoji: userProfile.emoji || "🎵",
@@ -326,10 +326,7 @@ function GigApplyForm({ gig, myBands, userProfile, onClose, onSuccess }) {
                 message: message.trim(),
                 appliedAt: new Date().toISOString(),
                 status: "pending",
-            };
-            await updateDoc(doc(db, "gigOpenings", gig.id), {
-                applications: arrayUnion(application),
-            });
+            }, { merge: true });
             onSuccess();
         } catch (e) { alert(e.message); }
         setLoading(false);
@@ -718,17 +715,22 @@ function MyApplications({ userId }) {
     useEffect(() => {
         const fetch = async () => {
             try {
-                const { collection, getDocs } = await import("firebase/firestore");
+                const { collectionGroup, query, where, getDocs } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
-                const snap = await getDocs(collection(db, "gigOpenings"));
-                const myApps = [];
-                snap.docs.forEach(d => {
-                    const data = d.data();
-                    const userApps = data.applications?.filter(a => a.applicantId === userId) || [];
-                    const app = userApps[userApps.length - 1]; // take most recent only
-                    if (app) myApps.push({ ...app, gigId: d.id, gigName: data.name, venueName: data.venueName, month: data.month, day: data.day, pay: data.pay });
-                });
-                setApps(myApps);
+                const q = query(collectionGroup(db, "applications"), where("applicantId", "==", userId));
+                const snap = await getDocs(q);
+                const myApps = snap.docs.map(d => ({
+                    ...d.data(),
+                    gigId: d.ref.parent.parent.id,
+                }));
+                // fetch gig names for each
+                const { doc, getDoc } = await import("firebase/firestore");
+                const enriched = await Promise.all(myApps.map(async app => {
+                    const gigDoc = await getDoc(doc(db, "gigOpenings", app.gigId));
+                    const gig = gigDoc.data();
+                    return { ...app, gigName: gig?.name || "Unknown Gig", venueName: gig?.venueName || "", month: gig?.month || "", day: gig?.day || "", pay: gig?.pay || null };
+                }));
+                setApps(enriched);
             } catch (e) { console.error(e); }
             setLoading(false);
         };
@@ -782,7 +784,6 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId }) {
                 <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Create a Band Profile</div>
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>List your open slots and find members</div>
             </div>}
-            {tab === "applied" && <MyApplications userId={userId} />}
             {tab === "gigs" && (
                 <div>
                     {gigOpenings.length === 0 ? (

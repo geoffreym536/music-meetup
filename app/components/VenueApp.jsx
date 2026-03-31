@@ -157,54 +157,81 @@ export default function VenueApp({ user, profile }) {
 
 function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
     const [viewingGig, setViewingGig] = useState(null);
+    const [applications, setApplications] = useState([]);
+    const [loadingApps, setLoadingApps] = useState(false);
     const openGigs = gigOpenings.filter(g => g.status === "open");
     const pendingApps = gigOpenings.reduce((n, g) => n + (g.applications?.length || 0), 0);
+
+    const openGigDetail = async gig => {
+        setViewingGig(gig);
+        setLoadingApps(true);
+        try {
+            const { collection, getDocs } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            const snap = await getDocs(collection(db, "gigOpenings", gig.id, "applications"));
+            setApplications(snap.docs.map(d => ({ ...d.data(), appId: d.id })));
+        } catch (e) { console.error(e); }
+        setLoadingApps(false);
+    };
+
+    const updateStatus = async (appId, status) => {
+        try {
+            const { doc, updateDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            await updateDoc(doc(db, "gigOpenings", viewingGig.id, "applications", appId), { status });
+            setApplications(p => p.map(a => a.appId === appId ? { ...a, status } : a));
+            if (status === "accepted") {
+                await updateDoc(doc(db, "gigOpenings", viewingGig.id), { status: "booked" });
+                setViewingGig(v => ({ ...v, status: "booked" }));
+            }
+        } catch (e) { alert(e.message); }
+    };
 
     if (viewingGig) return (
         <div className="vpg">
             <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid var(--border)" }}>
                 <button onClick={() => setViewingGig(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--ink)" }}>‹</button>
                 <div style={{ fontFamily: "Playfair Display,serif", fontSize: 18 }}>{viewingGig.name}</div>
+                <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 20, background: viewingGig.status === "booked" ? "#e8f5e9" : "#fef3e2", color: viewingGig.status === "booked" ? "var(--sage)" : "var(--amber)", border: `1px solid ${viewingGig.status === "booked" ? "#a5d6a7" : "#f5dba0"}` }}>{viewingGig.status}</span>
             </div>
-            <div style={{ padding: "16px 20px" }}>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>📅 {viewingGig.month} {viewingGig.day} · 💰 {viewingGig.pay || "Negotiable"}</div>
-                {(!viewingGig.applications || viewingGig.applications.length === 0) ? (
-                    <div className="es"><div className="ei">📬</div><div className="et">No applications yet</div><div className="ed">Share this opening with local musicians to get applications.</div></div>
-                ) : viewingGig.applications.map((app, i) => (
-                    <div key={i} style={{ background: "#fff", borderRadius: 12, border: "1px solid var(--border)", padding: "14px 16px", marginBottom: 12 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                            <div>
-                                <div style={{ fontWeight: 500, fontSize: 15 }}>{app.applicantEmoji} {app.bandName || app.applicantName}</div>
-                                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Applied {new Date(app.appliedAt).toLocaleDateString()}</div>
-                            </div>
-                            <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: app.status === "accepted" ? "#e8f5e9" : app.status === "declined" ? "#fce4ec" : "#fef3e2", color: app.status === "accepted" ? "var(--sage)" : app.status === "declined" ? "var(--rust)" : "var(--amber)", border: "1px solid", borderColor: app.status === "accepted" ? "#a5d6a7" : app.status === "declined" ? "#f48fb1" : "#f5dba0" }}>{app.status}</span>
+            <div style={{ padding: "12px 20px 4px", fontSize: 12, color: "var(--muted)" }}>
+                📅 {viewingGig.month} {viewingGig.day} · 💰 {viewingGig.pay || "Negotiable"}
+            </div>
+            <div style={{ padding: "4px 20px 16px", fontSize: 12, color: "var(--muted)" }}>
+                {loadingApps ? "Loading applications..." : `${applications.length} application${applications.length !== 1 ? "s" : ""}`}
+            </div>
+            {!loadingApps && applications.length === 0 && (
+                <div className="es"><div className="ei">📬</div><div className="et">No applications yet</div><div className="ed">Share this opening with local musicians to get applications.</div></div>
+            )}
+            {applications.map(app => (
+                <div key={app.appId} style={{ margin: "0 20px 12px", background: "#fff", borderRadius: 12, border: "1px solid var(--border)", padding: "14px 16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                        <div>
+                            <div style={{ fontWeight: 500, fontSize: 15 }}>{app.applicantEmoji} {app.bandName || app.applicantName}</div>
+                            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Applied {new Date(app.appliedAt).toLocaleDateString()}</div>
                         </div>
-                        {app.message && <div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "var(--warm)", borderRadius: 8 }}>{app.message}</div>}
-                        {app.status === "pending" && (
-                            <div style={{ display: "flex", gap: 8 }}>
-                                <button className="vbtn1" style={{ flex: 1, fontSize: 12 }} onClick={async () => {
-                                    try {
-                                        const { doc, updateDoc } = await import("firebase/firestore");
-                                        const { db } = await import("../../lib/firebase");
-                                        const updated = viewingGig.applications.map((a, j) => j === i ? { ...a, status: "accepted" } : a);
-                                        await updateDoc(doc(db, "gigOpenings", viewingGig.id), { applications: updated, status: "booked" });
-                                        setViewingGig({ ...viewingGig, applications: updated, status: "booked" });
-                                    } catch (e) { alert(e.message); }
-                                }}>✓ Accept</button>
-                                <button className="vbtn2" style={{ flex: 1, fontSize: 12 }} onClick={async () => {
-                                    try {
-                                        const { doc, updateDoc } = await import("firebase/firestore");
-                                        const { db } = await import("../../lib/firebase");
-                                        const updated = viewingGig.applications.map((a, j) => j === i ? { ...a, status: "declined" } : a);
-                                        await updateDoc(doc(db, "gigOpenings", viewingGig.id), { applications: updated });
-                                        setViewingGig({ ...viewingGig, applications: updated });
-                                    } catch (e) { alert(e.message); }
-                                }}>✗ Decline</button>
-                            </div>
-                        )}
+                        <span style={{
+                            fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 600,
+                            background: app.status === "accepted" ? "#e8f5e9" : app.status === "declined" ? "#fce4ec" : "#fef3e2",
+                            color: app.status === "accepted" ? "var(--sage)" : app.status === "declined" ? "var(--rust)" : "var(--amber)",
+                            border: `1px solid ${app.status === "accepted" ? "#a5d6a7" : app.status === "declined" ? "#f48fb1" : "#f5dba0"}`
+                        }}>
+                            {app.status === "accepted" ? "✓ Accepted" : app.status === "declined" ? "✗ Declined" : "⏳ Pending"}
+                        </span>
                     </div>
-                ))}
-            </div>
+                    {app.message && (
+                        <div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "var(--warm)", borderRadius: 8 }}>
+                            "{app.message}"
+                        </div>
+                    )}
+                    {app.status === "pending" && (
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <button className="vbtn1" style={{ flex: 1, fontSize: 12 }} onClick={() => updateStatus(app.appId, "accepted")}>✓ Accept</button>
+                            <button className="vbtn2" style={{ flex: 1, fontSize: 12 }} onClick={() => updateStatus(app.appId, "declined")}>✗ Decline</button>
+                        </div>
+                    )}
+                </div>
+            ))}
         </div>
     );
 
@@ -216,7 +243,6 @@ function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
                 <div className="vhaddr">📍 {profile.address}</div>
                 <div className="vhstats">
                     <div><span className="vstn">{openGigs.length}</span><span className="vstl">Open Gigs</span></div>
-                    <div><span className="vstn">{pendingApps}</span><span className="vstl">Applications</span></div>
                     <div><span className="vstn">{bands.length}</span><span className="vstl">Bands on App</span></div>
                 </div>
             </div>
@@ -228,7 +254,7 @@ function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
             {gigOpenings.length === 0 ? (
                 <div className="es"><div className="ei">🎵</div><div className="et">No gig openings yet</div><div className="ed">Post your first opening to start receiving band applications.</div></div>
             ) : gigOpenings.map(g => (
-                <div key={g.id} className="vcard" onClick={() => setViewingGig(g)} style={{ cursor: "pointer" }}>
+                <div key={g.id} className="vcard" onClick={() => openGigDetail(g)} style={{ cursor: "pointer" }}>
                     <div className="vcardt">
                         <div className="vcardtitle">{g.name}</div>
                         <div className="vcardsub">📅 {g.month} {g.day} · 💰 {g.pay || "Negotiable"}</div>
@@ -236,14 +262,15 @@ function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
                     <div className="vcardb">
                         <span className="vtag vtag-a">{g.type}</span>
                         {g.allAges && <span className="vtag vtag-g">All Ages</span>}
-                        <span className="vtag vtag-r">{g.applications?.length || 0} applicants</span>
                         <span className={`vtag ${g.status === "booked" ? "vtag-g" : "vtag-a"}`}>{g.status}</span>
+                        <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: "auto" }}>Tap to view applications →</span>
                     </div>
                 </div>
             ))}
         </div>
     );
 }
+
 
 function BandRoster({ bands, venueProfile, user, doToast }) {
     const [filter, setFilter] = useState("All");
