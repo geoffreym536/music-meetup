@@ -31,7 +31,12 @@ export default function Page() {
     setProfile(snap.data());
   };
 
-  if (user === undefined || profile === undefined) return null;
+  if (user === undefined || profile === undefined) return (
+  <div style={{position:"fixed",inset:0,background:"#1a1208",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+    <div style={{fontFamily:"Playfair Display,serif",fontSize:28,color:"#e6a84a"}}>Music<span style={{fontStyle:"italic",color:"#f5efe6"}}>Meetup</span></div>
+    <div style={{fontSize:12,color:"#7a6a58",letterSpacing:2,textTransform:"uppercase"}}>Loading...</div>
+  </div>
+);
   if (!user) return <Auth />;
   if (!profile) return <ProfileSetup onComplete={handleProfileComplete} />;
   return <MusicMeetup user={user} profile={profile} />;
