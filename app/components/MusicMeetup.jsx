@@ -881,42 +881,106 @@ export default function App({user, profile}){
                 const { collection, query, where, onSnapshot, orderBy, getDocs } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
                 
-                // Load existing messages
-                const q = query(collection(db, "messages"), where("senderId", "==", user.uid), orderBy("timestamp", "asc"));
-                const snap = await getDocs(q);
+                // Load existing messages - both sent and received
                 const msgMap = {};
-                snap.docs.forEach(doc => {
+                
+                // Load messages I sent
+                const qSent = query(collection(db, "messages"), where("senderId", "==", user.uid), orderBy("timestamp", "asc"));
+                const snapSent = await getDocs(qSent);
+                snapSent.docs.forEach(doc => {
                     const msg = doc.data();
-                    if (!msgMap[msg.recipientId]) msgMap[msg.recipientId] = [];
-                    msgMap[msg.recipientId].push({ id: doc.id, from: "me", text: msg.text, time: "Just now", type: "text" });
+                    const partnerId = msg.recipientId;
+                    if (!msgMap[partnerId]) msgMap[partnerId] = [];
+                    msgMap[partnerId].push({ 
+                        id: doc.id, 
+                        from: "me", 
+                        text: msg.text, 
+                        time: new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 
+                        type: "text" 
+                    });
                 });
                 
-                // Load received messages
+                // Load messages I received
                 const qRec = query(collection(db, "messages"), where("recipientId", "==", user.uid), orderBy("timestamp", "asc"));
                 const snapRec = await getDocs(qRec);
                 snapRec.docs.forEach(doc => {
                     const msg = doc.data();
-                    if (!msgMap[msg.senderId]) msgMap[msg.senderId] = [];
-                    msgMap[msg.senderId].push({ id: doc.id, from: "them", text: msg.text, time: "Just now", type: "text" });
+                    const partnerId = msg.senderId;
+                    if (!msgMap[partnerId]) msgMap[partnerId] = [];
+                    msgMap[partnerId].push({ 
+                        id: doc.id, 
+                        from: "them", 
+                        text: msg.text, 
+                        time: new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 
+                        type: "text",
+                        senderName: msg.senderName 
+                    });
                 });
+                
+                // Sort messages within each conversation by timestamp
+                Object.keys(msgMap).forEach(partnerId => {
+                    msgMap[partnerId].sort((a, b) => {
+                        const aTime = snapSent.docs.find(doc => doc.id === a.id)?.data().timestamp || 
+                                     snapRec.docs.find(doc => doc.id === a.id)?.data().timestamp || "";
+                        const bTime = snapSent.docs.find(doc => doc.id === b.id)?.data().timestamp || 
+                                     snapRec.docs.find(doc => doc.id === b.id)?.data().timestamp || "";
+                        return new Date(aTime) - new Date(bTime);
+                    });
+                });
+                
+                // Get musician info from realMusicians
+                const newConvs = Object.keys(msgMap).map(partnerId => {
+                    const musician = realMusicians.find(m => m.id === partnerId);
+                    return {
+                        id: partnerId,
+                        mid: partnerId,
+                        musician: musician || { id: partnerId, name: "Unknown Musician", emoji: "🎵", bg: "#f0e6d3" },
+                        unread: false,
+                        messages: msgMap[partnerId]
+                    };
+                });
+                
+                setConvs(newConvs);
                 
                 // Listen for new incoming messages
                 const qListener = query(
                     collection(db, "messages"),
                     where("recipientId", "==", user.uid),
-                    orderBy("timestamp", "asc")
+                    orderBy("timestamp", "desc")
                 );
                 const unsubscribe = onSnapshot(qListener, (snap) => {
                     snap.docs.forEach(doc => {
                         const msg = doc.data();
                         setConvs(p => {
-                            const ex = p.find(c => c.mid === msg.senderId);
-                            if (!ex) return p;
-                            const alreadyExists = ex.messages.some(m => m.id === doc.id);
+                            const existingIdx = p.findIndex(c => c.mid === msg.senderId);
+                            const alreadyExists = existingIdx >= 0 && p[existingIdx].messages.some(m => m.id === doc.id);
                             if (alreadyExists) return p;
-                            return p.map(c => c.mid === msg.senderId 
-                                ? { ...c, messages: [...c.messages, { id: doc.id, from: "them", text: msg.text, time: "Just now", type: "text" }], unread: true }
-                                : c);
+                            
+                            const newMsg = { 
+                                id: doc.id, 
+                                from: "them", 
+                                text: msg.text, 
+                                time: new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 
+                                type: "text",
+                                senderName: msg.senderName 
+                            };
+                            
+                            if (existingIdx >= 0) {
+                                // Add to existing conversation
+                                const updated = [...p];
+                                updated[existingIdx] = { ...updated[existingIdx], messages: [...updated[existingIdx].messages, newMsg], unread: true };
+                                return updated;
+                            } else {
+                                // Create new conversation
+                                const musician = realMusicians.find(m => m.id === msg.senderId);
+                                return [...p, {
+                                    id: msg.senderId,
+                                    mid: msg.senderId,
+                                    musician: musician || { id: msg.senderId, name: msg.senderName, emoji: "🎵", bg: "#f0e6d3" },
+                                    unread: true,
+                                    messages: [newMsg]
+                                }];
+                            }
                         });
                     });
                 });
@@ -926,7 +990,7 @@ export default function App({user, profile}){
             }
         };
         listenForMessages();
-    }, [user.uid]);
+    }, [user.uid, realMusicians]);
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
@@ -934,11 +998,11 @@ export default function App({user, profile}){
         const ex = convs.find(c => c.mid === m.id);
         if (ex) { openChat(ex.id); return; }
         const nc = {
-            id: Date.now(),
+            id: m.id,
             mid: m.id,
             musician: m,
             unread: false,
-            messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }]
+            messages: []
         };
         setConvs(p => [...p, nc]);
         setConvId(nc.id);
