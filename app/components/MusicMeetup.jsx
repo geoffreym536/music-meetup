@@ -776,7 +776,7 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId }) {
             <div className="trow">{[["discover", "Discover"], ["seeking", "Seeking"], ["gigs", "Gig Openings"], ["mybands", "My Bands"], ["applied", "My Applications"]].map(([id, l]) => <div key={id} className={`ti${tab === id ? " on" : ""}`} onClick={() => setTab(id)}>{l}</div>)}</div>
             <div style={{ height: 12 }} />
             {tab !== "gigs" && shown.map(b => <BCard key={b.id} b={b} onClick={onB} />)}
-            {tab === "applied" && <MyApplications userId={currentUserId} />}
+            {tab === "applied" && <MyApplications userId={userId} />}
             {tab !== "gigs" && <div style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }} onClick={onCreate}>
                 <div style={{ fontSize: 28, marginBottom: 6 }}>🎵</div>
                 <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Create a Band Profile</div>
