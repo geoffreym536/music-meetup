@@ -271,11 +271,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);}
 .vstat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;}
 `;
 
-const MUSICIANS = [{ id: 1, name: "Maria T.", emoji: "🎸", instrument: "Guitar", genres: ["Blues", "Indie"], looking: "Jam Session", dist: "1.2 mi", online: true, bg: "#f0e6d3", age: "adult" }, { id: 2, name: "Dev R.", emoji: "🥁", instrument: "Drums", genres: ["Rock", "Funk"], looking: "Open Mic", dist: "2.8 mi", online: true, bg: "#e8f0e6", age: "adult" }, { id: 3, name: "Sam K.", emoji: "🎹", instrument: "Keys", genres: ["Jazz", "Soul"], looking: "Band", dist: "0.9 mi", online: false, bg: "#e6eaf0", age: "adult" }, { id: 4, name: "Lucia M.", emoji: "🎻", instrument: "Violin", genres: ["Folk", "Indie"], looking: "Recording", dist: "3.4 mi", online: true, bg: "#f0e6ea", age: "minor" }, { id: 5, name: "Jordan B.", emoji: "🎷", instrument: "Sax", genres: ["Jazz", "Blues"], looking: "Gigging", dist: "1.7 mi", online: false, bg: "#eef0e6", age: "adult" }];
-const INIT_BANDS = [{ id: 1, name: "Patchwork Sound", emoji: "🎸", genres: ["Blues", "90s Rock", "Acoustic Indie"], dist: "Your Band", members: [{ name: "Geoff M.", emoji: "🎸", role: "Guitar (Slide)", filled: true }, { name: "Karci R.", emoji: "🎵", role: "Vocals", filled: true }, { name: "Pete L.", emoji: "🎹", role: "Keys", filled: true }, { name: "Open", emoji: "🥁", role: "Drums", filled: false }, { name: "Open", emoji: "🎸", role: "Bass", filled: false }], desc: "Blues and 90s rock with acoustic indie twist. Playing the Grand Junction circuit.", isMyBand: true }, { id: 2, name: "The Copper Rails", emoji: "🚂", genres: ["Americana", "Country", "Folk"], dist: "2.1 mi", members: [{ name: "Tom V.", emoji: "🎸", role: "Guitar", filled: true }, { name: "Ana D.", emoji: "🎻", role: "Fiddle", filled: true }, { name: "Open", emoji: "🎹", role: "Keys", filled: false }, { name: "Open", emoji: "🥁", role: "Drums", filled: false }], desc: "Americana band, deep roots influences. Active gigging schedule.", isMyBand: false }, { id: 3, name: "Mesa Verde Jazz", emoji: "🎷", genres: ["Jazz", "Soul", "Funk"], dist: "0.8 mi", members: [{ name: "Dev R.", emoji: "🥁", role: "Drums", filled: true }, { name: "Sam K.", emoji: "🎹", role: "Piano", filled: true }, { name: "Jordan B.", emoji: "🎷", role: "Sax", filled: true }, { name: "Open", emoji: "🎸", role: "Bass", filled: false }], desc: "Jazz collective. Sunday residency at Mesa Verde Coffee Co.", isMyBand: false }];
-const INIT_EVENTS = [{ id: 1, name: "Downtown Open Mic Night", venue: "The Rabbit Hole Bar", month: "APR", day: "04", dow: "FRI", type: "openmic", allAges: true, going: ["🎸", "🥁", "🎹"], slots: 3, joined: false }, { id: 2, name: "Sunday Jazz Jam", venue: "Mesa Verde Coffee Co.", month: "APR", day: "06", dow: "SUN", type: "jam", allAges: false, going: ["🎷", "🎻"], slots: 5, joined: false }, { id: 3, name: "Spring Acoustic Showcase", venue: "Avalon Theatre", month: "APR", day: "12", dow: "SAT", type: "gig", allAges: true, going: ["🎸", "🎹", "🥁", "🎻"], slots: 0, joined: false }, { id: 4, name: "Roots & Blues Meetup", venue: "Palisade Brewery", month: "APR", day: "18", dow: "FRI", type: "jam", allAges: false, going: ["🎸", "🎷"], slots: 4, joined: false }];
-const INIT_CONVS = [{ id: 1, mid: 1, unread: true, messages: [{ id: 1, from: "them", text: "Hey! Saw you play open slide — great tone. Ever jammed in open E?", time: "2:14 PM", type: "text" }, { id: 2, from: "me", text: "Thanks! Yeah open E is basically all I do. What style are you into?", time: "2:31 PM", type: "text" }, { id: 3, from: "them", text: "Mostly delta blues and some indie. Would love to jam this weekend?", time: "2:45 PM", type: "text" }] }, { id: 2, mid: 2, unread: true, messages: [{ id: 1, from: "them", text: "Yo! Heard Patchwork Sound needs a drummer. I'm interested!", time: "Yesterday", type: "text" }, { id: 2, from: "me", text: "Hey Dev! Yeah we're looking. We do Fri/Sat evenings mostly.", time: "Yesterday", type: "text" }, { id: 3, from: "them", type: "jam_request", time: "10:22 AM", proposed: "Sat Apr 5 · 7:00 PM", status: "pending" }] }, { id: 3, mid: 5, unread: false, messages: [{ id: 1, from: "them", text: "Great seeing you at the Rabbit Hole! That slide work was 🔥", time: "Fri 11:02 PM", type: "text" }, { id: 2, from: "me", text: "Appreciate it! You were killing it on sax. Let's link up.", time: "Sat 9:14 AM", type: "text" }] }];
-
 const INIT_SHOWS = [
     { id: 1, name: "Patchwork Sound", venue: "The Rabbit Hole Bar", month: "APR", day: "04", dow: "FRI", time: "9:00 PM", cover: "$5", allAges: false, genres: ["Blues", "Rock"], band: { name: "Patchwork Sound", members: ["🎸", "🎵", "🎹"], appBand: true }, interested: 12, tonight: true, iMe: false },
     { id: 2, name: "Mesa Verde Jazz Collective", venue: "Mesa Verde Coffee Co.", month: "APR", day: "06", dow: "SUN", time: "6:00 PM", cover: "Free", allAges: true, genres: ["Jazz", "Soul"], band: { name: "Mesa Verde Jazz", members: ["🥁", "🎹", "🎷"], appBand: true }, interested: 8, tonight: false, iMe: false },
@@ -816,9 +811,9 @@ export default function App({user, profile}){
     const [tab, setTab] = useState("home");
     const [filter, setFilter] = useState("All");
     const [events, setEvents] = useState([]);
-    const [bands, setBands] = useState(INIT_BANDS);
+    const [bands, setBands] = useState([]);
     const [shows, setShows] = useState(INIT_SHOWS);
-    const [convs, setConvs] = useState(INIT_CONVS);
+    const [convs, setConvs] = useState([]);
     const [convId, setConvId] = useState(null);
     const [selM, setSelM] = useState(null);
     const [selB, setSelB] = useState(null);
@@ -871,14 +866,9 @@ export default function App({user, profile}){
                 const { collection, getDocs, orderBy, query } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
                 const snap = await getDocs(query(collection(db, "events"), orderBy("createdAt", "desc")));
-                if (snap.docs.length > 0) {
-                    setEvents(snap.docs.map(d => ({ ...d.data(), id: d.id })));
-                } else {
-                    setEvents(INIT_EVENTS);
-                }
+                setEvents(snap.docs.map(d => ({ ...d.data(), id: d.id })));
             } catch(e) {
                 console.error(e);
-                setEvents(INIT_EVENTS);
             }
         };
         fetchEvents();
