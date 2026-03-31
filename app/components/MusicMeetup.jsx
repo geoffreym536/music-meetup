@@ -303,7 +303,7 @@ const IP = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.
 const IB = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" /></svg>;
 const ILM = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" /></svg>;
 
-const getM = id => MUSICIANS.find(m => m.id === id);
+const getM = id => null;
 function useToggle(i = []) { const [l, s] = useState(i); return [l, v => s(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v])]; }
 
 function ShowCard({ show, onInt }) {
@@ -929,7 +929,7 @@ export default function App({user, profile}){
                         <div><div className="logo">Music<span>Meetup</span></div><div className="hsub">Grand Junction, CO</div></div>
                         <div className="avbtn" onClick={() => setTab("profile")}>{currentProfile?.emoji||"🎵"}</div>
                     </div>
-                    {tab === "home" && <Home musicians={realMusicians}
+                    {tab === "home" && <Home musicians={realMusicians} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
                     {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
