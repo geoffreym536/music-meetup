@@ -38,7 +38,7 @@ export default function Page() {
           setError(e.message);
         }
       } else {
-        setProfile(undefined);
+        setProfile(null);
         setAccountType(null);
       }
     }, e => setError(e.message));
