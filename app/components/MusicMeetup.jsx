@@ -599,17 +599,19 @@ function Inbox({ convs, onOpen }) {
             <div className="hero" style={{ padding: "20px 20px 16px" }}><div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Messages {uc > 0 && <em style={{ fontSize: 16 }}>· {uc} new</em>}</div></div>
             <div className="ilist">
                 {convs.map(c => {
-                    const m = getM(c.mid); const last = c.messages[c.messages.length - 1];
+                    const m = c.musician;
+                    if (!m) return null;
+                    const last = c.messages[c.messages.length - 1];
                     const prev = last.type === "jam_request" ? "📅 Jam request" : (last.from === "me" ? `You: ${last.text}` : last.text);
                     return (
                         <div key={c.id} className={`iit${c.unread ? " unr" : ""}`} onClick={() => onOpen(c.id)}>
-                            <div className="iav" style={{ background: m.bg }}>{m.emoji}{m.online && <div className="ionl" />}</div>
+                            <div className="iav" style={{ background: m.bg||"#f0e6d3" }}>{m.emoji}{m.online && <div className="ionl" />}</div>
                             <div className="iinf"><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div className="inam">{m.name}</div><span style={{ fontSize: 10, color: "var(--amber)", fontWeight: 500 }}>{m.instrument}</span></div><div className="ipre">{prev}</div></div>
                             <div className="imet"><div className="itim">{last.time}</div>{c.unread && <div className="iudot" />}</div>
                         </div>
                     );
                 })}
-                {convs.length === 0 && <div className="es"><div className="ei">💬</div><div className="et">No messages yet</div><div className="ed">Tap Message on any musician to start a conversation.</div></div>}
+                {convs.length === 0 && <div className="es"><div className="ei">💬</div><div className="et">No messages yet</div><div className="ed">Tap a musician's profile and hit Message to start a conversation.</div></div>}
             </div>
         </div>
     );
@@ -890,7 +892,20 @@ export default function App({user, profile}){
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
-    const msgMusician = m => { const ex = convs.find(c => c.mid === m.id); if (ex) { openChat(ex.id); return; } const nc = { id: Date.now(), mid: m.id, unread: false, messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }] }; setConvs(p => [...p, nc]); setConvId(nc.id); setTab("messages"); };
+    const msgMusician = m => {
+        const ex = convs.find(c => c.mid === m.id);
+        if (ex) { openChat(ex.id); return; }
+        const nc = {
+            id: Date.now(),
+            mid: m.id,
+            musician: m,
+            unread: false,
+            messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }]
+        };
+        setConvs(p => [...p, nc]);
+        setConvId(nc.id);
+        setTab("messages");
+    };
     const sendMsg = (cid, txt) => {
         setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", text: txt, time: "Just now", type: "text" }] } : c));
         setTimeout(() => { const replies = ["Sounds great! I'm free this weekend.", "Nice! What style are you into?", "Let's do it! I know a good spot.", "Yeah for sure, hit me up Friday.", "That works for me 👍"]; setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now() + 1, from: "them", text: replies[Math.floor(Math.random() * replies.length)], time: "Just now", type: "text" }] } : c)); }, 1200);
@@ -914,7 +929,7 @@ export default function App({user, profile}){
 
     const uc = convs.filter(c => c.unread).length;
     const activeConv = convs.find(c => c.id === convId);
-    const activeM = activeConv ? getM(activeConv.mid) : null;
+    const activeM = activeConv ? activeConv.musician : null;
 
     if (!ageSet) return (<><style>{S}</style><AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} /></>);
 
