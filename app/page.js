@@ -1,13 +1,10 @@
-import MusicMeetup from "./components/MusicMeetup";
+'use client';
+import dynamic from 'next/dynamic';
+
+const MusicMeetup = dynamic(() => import('./components/MusicMeetup'), {
+  ssr: false
+});
 
 export default function Page() {
   return <MusicMeetup />;
 }
-```
-Click **Commit new file**.
-
-**Step 3 — Create the component**
-
-Click **Add file → Create new file**, type:
-```
-app/components/MusicMeetup.jsx
