@@ -26,7 +26,7 @@ export default function Page() {
             setError(e.message);
           }
         } else {
-          setProfile(undefined);
+          setProfile(null);
         }
       }, e => setError(e.message));
       return () => unsub();
