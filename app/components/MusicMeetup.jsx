@@ -659,20 +659,44 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
     );
 }
 
-function Bands({ bands, onB, onCreate }) {
+function Bands({ bands, onB, onCreate, gigOpenings }) {
     const [tab, setTab] = useState("discover");
     const shown = tab === "mybands" ? bands.filter(b => b.isMyBand) : tab === "seeking" ? bands.filter(b => b.members.some(m => !m.filled)) : bands;
     return (
         <div className="pg">
             <div className="hero" style={{ padding: "20px 20px 16px" }}><div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Bands & <em>Ensembles</em></div></div>
-            <div className="trow">{[["discover", "Discover"], ["seeking", "Seeking"], ["mybands", "My Bands"]].map(([id, l]) => <div key={id} className={`ti${tab === id ? " on" : ""}`} onClick={() => setTab(id)}>{l}</div>)}</div>
+            <div className="trow">{[["discover", "Discover"], ["seeking", "Seeking"], ["gigs", "Gig Openings"], ["mybands", "My Bands"]].map(([id, l]) => <div key={id} className={`ti${tab === id ? " on" : ""}`} onClick={() => setTab(id)}>{l}</div>)}</div>
             <div style={{ height: 12 }} />
-            {shown.map(b => <BCard key={b.id} b={b} onClick={onB} />)}
-            <div style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }} onClick={onCreate}>
+            {tab !== "gigs" && shown.map(b => <BCard key={b.id} b={b} onClick={onB} />)}
+            {tab !== "gigs" && <div style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }} onClick={onCreate}>
                 <div style={{ fontSize: 28, marginBottom: 6 }}>🎵</div>
                 <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Create a Band Profile</div>
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>List your open slots and find members</div>
-            </div>
+            </div>}
+            {tab === "gigs" && (
+                <div>
+                    {gigOpenings.length === 0 ? (
+                        <div className="es"><div className="ei">🎸</div><div className="et">No gig openings yet</div><div className="ed">Venues will post paid gig opportunities here. Check back soon.</div></div>
+                    ) : gigOpenings.map(g => (
+                        <div key={g.id} style={{ margin: "0 20px 12px", background: "#fff", borderRadius: 14, border: "2px solid var(--border)", overflow: "hidden" }}>
+                            <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", padding: "14px 16px" }}>
+                                <div style={{ fontFamily: "Playfair Display,serif", fontSize: 17, color: "var(--parchment)", marginBottom: 2 }}>{g.name}</div>
+                                <div style={{ fontSize: 12, color: "var(--al)", fontWeight: 500 }}>📍 {g.venueName}</div>
+                            </div>
+                            <div style={{ padding: "12px 16px" }}>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#fef3e2", color: "var(--amber)", border: "1px solid #f5dba0" }}>📅 {g.month} {g.day}</span>
+                                    {g.pay && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#e8f5e9", color: "var(--sage)", border: "1px solid #a5d6a7" }}>💰 {g.pay}</span>}
+                                    {g.allAges && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--safel)", color: "var(--safe)", border: "1px solid var(--safeb)" }}>✅ All Ages</span>}
+                                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--warm)", color: "var(--muted)", border: "1px solid var(--border)" }}>{g.type}</span>
+                                </div>
+                                {g.notes && <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5, marginBottom: 10 }}>{g.notes}</div>}
+                                <button className="btn1" style={{ width: "100%", padding: 10, fontSize: 13 }}>🎸 Apply for This Gig</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -832,6 +856,20 @@ export default function App({ user, profile }) {
 
     const [realMusicians, setRealMusicians] = useState([]);
 
+    const [gigOpenings, setGigOpenings] = useState([]);
+
+    useEffect(() => {
+        const fetchGigs = async () => {
+            try {
+                const { collection, getDocs, query, where } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const snap = await getDocs(query(collection(db, "gigOpenings"), where("status", "==", "open")));
+                setGigOpenings(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+            } catch (e) { console.error(e); }
+        };
+        fetchGigs();
+    }, []);
+
     useEffect(() => {
         const fetchMusicians = async () => {
             try {
@@ -927,7 +965,7 @@ export default function App({ user, profile }) {
         setup();
         return () => unsub();
     }, [user?.uid, realMusicians.length]);
-    
+
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
     const getConvId = (uid1, uid2) => [uid1, uid2].sort().join("_");
@@ -1008,7 +1046,7 @@ export default function App({ user, profile }) {
                     </div>
                     {tab === "home" && <Home musicians={realMusicians} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
-                    {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} />}
+                    {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} gigOpenings={gigOpenings} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
                     {tab === "messages" && !activeConv && <Inbox convs={convs} onOpen={openChat} />}
                     {tab === "profile" && <Profile onEdit={() => setShowEdit(true)} profile={currentProfile} />}
