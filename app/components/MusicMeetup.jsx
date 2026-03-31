@@ -700,23 +700,29 @@ function Events({ events, onJoin, minor, onAdd }) {
     );
 }
 
-function Profile({ onEdit }) {
-    return (
-        <div className="pg">
-            <div className="phero"><span className="pem">🎸</span><div className="pnam">Geoff M.</div><div className="ptag">Slide Guitar · Open E · Grand Junction, CO</div><div className="pbdg"><span className="bdg bda">Blues</span><span className="bdg bda">90s Rock</span><span className="bdg bds">Acoustic Indie</span><span className="bdg bdr">Gigging</span></div></div>
-            <div className="psec"><div className="pstit">My Band</div><div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}><div style={{ width: 44, height: 44, borderRadius: 10, background: "#f0e6d3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎸</div><div><div style={{ fontWeight: 500, fontSize: 14 }}>Patchwork Sound</div><div style={{ fontSize: 11, color: "var(--amber)", fontWeight: 500, textTransform: "uppercase", letterSpacing: ".5px", marginTop: 2 }}>3/5 members · Seeking Drummer, Bass</div></div></div></div>
-            <div className="psec"><div className="pstit">Looking For</div><div className="plook">{["Open Mic Partner", "Jam Sessions", "Gigging"].map(l => <div key={l} className="li">🎯 {l}</div>)}</div></div>
-            <div className="psec"><div className="pstit">Availability</div><div className="agr">{DAYS.map(d => <div key={d} className={`ad ${["Fri", "Sat", "Sun"].includes(d) ? "av" : "bz"}`}><span className="bp">{d}</span><span className="bs">{["Fri", "Sat", "Sun"].includes(d) ? "Free" : "Busy"}</span></div>)}</div></div>
-            <div className="psec"><div className="pstit">About</div><div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6 }}>Slide guitarist with Patchwork Sound. Blues, 90s rock, acoustic indie. Looking for open mic partners and weekend jams.</div></div>
-            <div style={{ padding: "16px 20px 8px", display: "flex", flexDirection: "column", gap: 10 }}>
-                <button className="btn1" style={{ width: "100%", padding: 14, fontSize: 15 }} onClick={onEdit}>✏️ Edit Profile</button>
-                <button className="btn2" style={{ width: "100%", padding: 12, textAlign: "center", fontSize: 14 }}>🛡️ Privacy & Safety Settings</button>
-                <button className="btn2" style={{width:"100%",padding:12,textAlign:"center",fontSize:14,color:"var(--rust)"}} onClick={()=>import("../../lib/firebase").then(m=>import("firebase/auth").then(a=>a.signOut(m.auth)))}>🚪 Sign Out</button>
-            </div>
+function Profile({onEdit, profile}){
+  return(
+    <div className="pg">
+      <div className="phero">
+        <span className="pem">{profile.emoji || "🎵"}</span>
+        <div className="pnam">{profile.name}</div>
+        <div className="ptag">{profile.instrument} · {profile.location}</div>
+        <div className="pbdg">
+          {profile.genres.map(g=><span key={g} className="bdg bda">{g}</span>)}
+          {profile.looking.map(l=><span key={l} className="bdg bds">{l}</span>)}
         </div>
-    );
+      </div>
+      <div className="psec"><div className="pstit">Looking For</div><div className="plook">{profile.looking.map(l=><div key={l} className="li">🎯 {l}</div>)}</div></div>
+      <div className="psec"><div className="pstit">Availability</div><div className="agr">{DAYS.map(d=><div key={d} className={`ad ${profile.availability.includes(d)?"av":"bz"}`}><span className="bp">{d}</span><span className="bs">{profile.availability.includes(d)?"Free":"Busy"}</span></div>)}</div></div>
+      <div className="psec"><div className="pstit">About</div><div style={{fontSize:13,color:"var(--ink)",lineHeight:1.6}}>{profile.about||"No bio yet."}</div></div>
+      <div style={{padding:"16px 20px 8px",display:"flex",flexDirection:"column",gap:10}}>
+        <button className="btn1" style={{width:"100%",padding:14,fontSize:15}} onClick={onEdit}>✏️ Edit Profile</button>
+        <button className="btn2" style={{width:"100%",padding:12,textAlign:"center",fontSize:14}}>🛡️ Privacy & Safety Settings</button>
+        <button className="btn2" style={{width:"100%",padding:12,textAlign:"center",fontSize:14,color:"var(--rust)"}} onClick={()=>import("../../lib/firebase").then(m=>import("firebase/auth").then(a=>a.signOut(m.auth)))}>🚪 Sign Out</button>
+      </div>
+    </div>
+  );
 }
-
 function AddEventModal({ onClose, onAdd }) {
     const [name, setName] = useState(""); const [venue, setVenue] = useState(""); const [type, setType] = useState("openmic"); const [allAges, setAllAges] = useState(false); const [slots, setSlots] = useState(""); const [date, setDate] = useState(""); const [errs, setErrs] = useState({});
     const go = () => { const e = {}; if (!name.trim()) e.name = "Required"; if (!venue.trim()) e.venue = "Required"; if (!date) e.date = "Required"; setErrs(e); if (Object.keys(e).length) return; const d = new Date(date + "T12:00:00"); onAdd({ name: name.trim(), venue: venue.trim(), type, allAges, slots: parseInt(slots) || 0, month: MONS[d.getMonth()].toUpperCase(), day: String(d.getDate()).padStart(2, "0"), dow: DOWL[d.getDay()].toUpperCase(), going: [], joined: false }); onClose(); };
@@ -804,7 +810,7 @@ function AgeGate({ onSelect }) {
     );
 }
 
-export default function App() {
+export default function App({user, profile}){
     const [ageSet, setAgeSet] = useState(false); const [minor, setMinor] = useState(false);
     const [tab, setTab] = useState("home"); const [filter, setFilter] = useState("All");
     const [events, setEvents] = useState(INIT_EVENTS); const [bands, setBands] = useState(INIT_BANDS);
@@ -845,7 +851,7 @@ export default function App() {
                     {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
                     {tab === "messages" && !activeConv && <Inbox convs={convs} onOpen={openChat} />}
-                    {tab === "profile" && <Profile onEdit={() => setShowEdit(true)} />}
+                    {tab==="profile"&&<Profile onEdit={()=>setShowEdit(true)} profile={profile}/>}
                     <nav className="bnav">
                         {[{ id: "home", icon: <IH />, label: "Home" }, { id: "live", icon: <ILM />, label: "Live" }, { id: "bands", icon: <IB />, label: "Bands" }, { id: "events", icon: <IC />, label: "Events" }, { id: "messages", icon: <IM />, label: "Messages", badge: uc }].map(n => (
                             <button key={n.id} className={`nbtn${tab === n.id ? " on" : ""}`} onClick={() => { setTab(n.id); if (n.id !== "messages") setConvId(null); }}>
