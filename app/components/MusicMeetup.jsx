@@ -295,7 +295,6 @@ const LOOK = ["Jam Session", "Open Mic", "Band", "Gigging", "Recording", "Teachi
 const MONS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DOWL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const EMOJ = { Guitar: "🎸", Bass: "🎸", Drums: "🥁", Keys: "🎹", Vocals: "🎵", Violin: "🎻", Sax: "🎷", Trumpet: "🎺", Other: "🎵" };
-const [applyingGig, setApplyingGig] = useState(null);
 
 const IH = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>;
 const IC = () => <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" /></svg>;
@@ -712,7 +711,7 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
     );
 }
 
-function Bands({ bands, onB, onCreate, gigOpenings }) {
+function Bands({ bands, onB, onCreate, gigOpenings, onApply }) {
     const [tab, setTab] = useState("discover");
     const shown = tab === "mybands" ? bands.filter(b => b.isMyBand) : tab === "seeking" ? bands.filter(b => b.members.some(m => !m.filled)) : bands;
     return (
@@ -744,7 +743,7 @@ function Bands({ bands, onB, onCreate, gigOpenings }) {
                                     <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--warm)", color: "var(--muted)", border: "1px solid var(--border)" }}>{g.type}</span>
                                 </div>
                                 {g.notes && <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5, marginBottom: 10 }}>{g.notes}</div>}
-                                <button className="btn1" style={{ width: "100%", padding: 10, fontSize: 13 }} onClick={() => setApplyingGig(g)}>🎸 Apply for This Gig</button>
+                                <button className="btn1" style={{ width: "100%", padding: 10, fontSize: 13 }} onClick={() => onApply(g)}>🎸 Apply for This Gig</button>
                             </div>
                         </div>
                     ))}
@@ -906,6 +905,7 @@ export default function App({ user, profile }) {
     const [editLooking, setEditLooking] = useState(profile?.looking || []);
     const [editAbout, setEditAbout] = useState(profile?.about || "");
     const [savingProfile, setSavingProfile] = useState(false);
+    const [applyingGig, setApplyingGig] = useState(null);
 
     const [realMusicians, setRealMusicians] = useState([]);
 
@@ -1099,7 +1099,7 @@ export default function App({ user, profile }) {
                     </div>
                     {tab === "home" && <Home musicians={realMusicians} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
-                    {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} gigOpenings={gigOpenings} />}
+                    {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} gigOpenings={gigOpenings} onApply={setApplyingGig} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
                     {tab === "messages" && !activeConv && <Inbox convs={convs} onOpen={openChat} />}
                     {tab === "profile" && <Profile onEdit={() => setShowEdit(true)} profile={currentProfile} />}
