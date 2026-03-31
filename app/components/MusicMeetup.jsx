@@ -811,14 +811,28 @@ function AgeGate({ onSelect }) {
 }
 
 export default function App({user, profile}){
-    const [ageSet, setAgeSet] = useState(false); const [minor, setMinor] = useState(false);
-    const [tab, setTab] = useState("home"); const [filter, setFilter] = useState("All");
-    const [events, setEvents] = useState(INIT_EVENTS); const [bands, setBands] = useState(INIT_BANDS);
+    const [ageSet, setAgeSet] = useState(false);
+    const [minor, setMinor] = useState(false);
+    const [tab, setTab] = useState("home");
+    const [filter, setFilter] = useState("All");
+    const [events, setEvents] = useState(INIT_EVENTS);
+    const [bands, setBands] = useState(INIT_BANDS);
     const [shows, setShows] = useState(INIT_SHOWS);
-    const [convs, setConvs] = useState(INIT_CONVS); const [convId, setConvId] = useState(null);
-    const [selM, setSelM] = useState(null); const [selB, setSelB] = useState(null);
-    const [showEdit, setShowEdit] = useState(false); const [showAddEv, setShowAddEv] = useState(false); const [showCB, setShowCB] = useState(false);
+    const [convs, setConvs] = useState(INIT_CONVS);
+    const [convId, setConvId] = useState(null);
+    const [selM, setSelM] = useState(null);
+    const [selB, setSelB] = useState(null);
+    const [showEdit, setShowEdit] = useState(false);
+    const [showAddEv, setShowAddEv] = useState(false);
+    const [showCB, setShowCB] = useState(false);
     const [toast, setToast] = useState(null);
+    const [currentProfile, setCurrentProfile] = useState(profile);
+    const [editName, setEditName] = useState(profile?.name||"");
+    const [editInstrument, setEditInstrument] = useState(profile?.instrument||"");
+    const [editGenres, setEditGenres] = useState(profile?.genres||[]);
+    const [editLooking, setEditLooking] = useState(profile?.looking||[]);
+    const [editAbout, setEditAbout] = useState(profile?.about||"");
+    const [savingProfile, setSavingProfile] = useState(false);
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
@@ -829,35 +843,26 @@ export default function App({user, profile}){
     };
     const sendJam = (cid, proposed) => setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", type: "jam_request", proposed, time: "Just now", status: "pending" }] } : c));
 
+    const saveProfile = async () => {
+        setSavingProfile(true);
+        try {
+            const {doc, setDoc} = await import("firebase/firestore");
+            const {db} = await import("../lib/firebase");
+            const EMAP = {Guitar:"🎸",Bass:"🎸",Drums:"🥁",Keys:"🎹",Violin:"🎻",Sax:"🎷",Vocals:"🎵",Trumpet:"🎺",Banjo:"🪕",Mandolin:"🎸",Other:"🎵"};
+            const updated = {...currentProfile, name:editName, instrument:editInstrument, emoji:EMAP[editInstrument]||"🎵", genres:editGenres, looking:editLooking, about:editAbout};
+            await setDoc(doc(db, "users", user.uid), updated);
+            setCurrentProfile(updated);
+            setShowEdit(false);
+            doToast("Profile saved!");
+        } catch(e) { alert(e.message); }
+        setSavingProfile(false);
+    };
+
     const uc = convs.filter(c => c.unread).length;
     const activeConv = convs.find(c => c.id === convId);
     const activeM = activeConv ? getM(activeConv.mid) : null;
 
     if (!ageSet) return (<><style>{S}</style><AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} /></>);
-
-    const saveProfile = async () => {
-        setSavingProfile(true);
-        try {
-            const {doc, setDoc} = await import("firebase/firestore");
-            const {db} = await import("../../lib/firebase");
-            const EMOJ={Guitar:"🎸",Bass:"🎸",Drums:"🥁",Keys:"🎹",Violin:"🎻",Sax:"🎷",Vocals:"🎵",Trumpet:"🎺",Banjo:"🪕",Mandolin:"🎸",Other:"🎵"};
-            const updated = {
-            ...currentProfile,
-            name: editName,
-            instrument: editInstrument,
-            emoji: EMOJ[editInstrument]||"🎵",
-            genres: editGenres,
-            looking: editLooking,
-            about: editAbout,
-            };
-            await setDoc(doc(db, "users", user.uid), updated);
-            setCurrentProfile(updated);
-            setShowEdit(false);
-        } catch(e) {
-            alert(e.message);
-        }
-        setSavingProfile(false);
-        };
 
     return (
         <>
@@ -868,14 +873,14 @@ export default function App({user, profile}){
                 <div style={{ display: tab === "messages" && activeConv ? "none" : "block" }}>
                     <div className="hdr">
                         <div><div className="logo">Music<span>Meetup</span></div><div className="hsub">Grand Junction, CO</div></div>
-                        <div className="avbtn" onClick={() => setTab("profile")}>🎸</div>
+                        <div className="avbtn" onClick={() => setTab("profile")}>{currentProfile?.emoji||"🎵"}</div>
                     </div>
                     {tab === "home" && <Home musicians={MUSICIANS} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
                     {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
                     {tab === "messages" && !activeConv && <Inbox convs={convs} onOpen={openChat} />}
-                    {tab==="profile"&&<Profile onEdit={()=>setShowEdit(true)} profile={currentProfile}/>}
+                    {tab === "profile" && <Profile onEdit={() => setShowEdit(true)} profile={currentProfile} />}
                     <nav className="bnav">
                         {[{ id: "home", icon: <IH />, label: "Home" }, { id: "live", icon: <ILM />, label: "Live" }, { id: "bands", icon: <IB />, label: "Bands" }, { id: "events", icon: <IC />, label: "Events" }, { id: "messages", icon: <IM />, label: "Messages", badge: uc }].map(n => (
                             <button key={n.id} className={`nbtn${tab === n.id ? " on" : ""}`} onClick={() => { setTab(n.id); if (n.id !== "messages") setConvId(null); }}>
@@ -889,17 +894,17 @@ export default function App({user, profile}){
                 <BModal b={selB} onClose={() => setSelB(null)} />
                 {showAddEv && <AddEventModal onClose={() => setShowAddEv(false)} onAdd={d => { setEvents(p => [...p, { ...d, id: Date.now() }]); doToast("Event added!"); }} />}
                 {showCB && <CreateBandModal onClose={() => setShowCB(false)} onCreate={d => { setBands(p => [...p, { ...d, id: Date.now() }]); doToast("Band profile created!"); setTab("bands"); }} />}
-                {showEdit&&(
-                    <div className="ov" onClick={()=>setShowEdit(false)}><div className="mod" onClick={e=>e.stopPropagation()}>
-                        <div className="mhnd"/><div className="mtit">Edit Your Profile</div>
-                        <div className="fg"><label className="fl">Display Name</label><input className="fi" value={editName} onChange={e=>setEditName(e.target.value)}/></div>
-                        <div className="fg"><label className="fl">Primary Instrument</label><select className="fsl" value={editInstrument} onChange={e=>setEditInstrument(e.target.value)}>{INSTS.map(i=><option key={i}>{i}</option>)}</select></div>
-                        <div className="fg"><label className="fl">Genres</label><div className="cbg">{GENRES.map(g=><div key={g} className={`cbl${editGenres.includes(g)?" ck":""}`} onClick={()=>setEditGenres(p=>p.includes(g)?p.filter(x=>x!==g):[...p,g])}>{g}</div>)}</div></div>
-                        <div className="fg"><label className="fl">Looking For</label><div className="cbg">{LOOK.map(l=><div key={l} className={`cbl${editLooking.includes(l)?" ck":""}`} onClick={()=>setEditLooking(p=>p.includes(l)?p.filter(x=>x!==l):[...p,l])}>{l}</div>)}</div></div>
-                        <div className="fg"><label className="fl">About You</label><textarea className="fta" value={editAbout} onChange={e=>setEditAbout(e.target.value)}/></div>
-                        <button className="btn1" style={{width:"100%",padding:14,marginTop:6}} onClick={saveProfile} disabled={savingProfile}>{savingProfile?"Saving...":"Save Profile"}</button>
+                {showEdit && (
+                    <div className="ov" onClick={() => setShowEdit(false)}><div className="mod" onClick={e => e.stopPropagation()}>
+                        <div className="mhnd" /><div className="mtit">Edit Your Profile</div>
+                        <div className="fg"><label className="fl">Display Name</label><input className="fi" value={editName} onChange={e => setEditName(e.target.value)} /></div>
+                        <div className="fg"><label className="fl">Primary Instrument</label><select className="fsl" value={editInstrument} onChange={e => setEditInstrument(e.target.value)}>{INSTS.map(i => <option key={i}>{i}</option>)}</select></div>
+                        <div className="fg"><label className="fl">Genres</label><div className="cbg">{GENRES.map(g => <div key={g} className={`cbl${editGenres.includes(g) ? " ck" : ""}`} onClick={() => setEditGenres(p => p.includes(g) ? p.filter(x => x !== g) : [...p, g])}>{g}</div>)}</div></div>
+                        <div className="fg"><label className="fl">Looking For</label><div className="cbg">{LOOK.map(l => <div key={l} className={`cbl${editLooking.includes(l) ? " ck" : ""}`} onClick={() => setEditLooking(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l])}>{l}</div>)}</div></div>
+                        <div className="fg"><label className="fl">About You</label><textarea className="fta" value={editAbout} onChange={e => setEditAbout(e.target.value)} /></div>
+                        <button className="btn1" style={{ width: "100%", padding: 14, marginTop: 6 }} onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "Saving..." : "Save Profile"}</button>
                     </div></div>
-                    )}
+                )}
             </div>
         </>
     );
