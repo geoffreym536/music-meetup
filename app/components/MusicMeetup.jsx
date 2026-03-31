@@ -317,18 +317,26 @@ function GigApplyForm({ gig, myBands, userProfile, onClose, onSuccess }) {
             const { doc, setDoc } = await import("firebase/firestore");
             const { db } = await import("../../lib/firebase");
             const band = myBands.find(b => b.id === selectedBand);
-            await setDoc(doc(db, "gigOpenings", gig.id, "applications", userProfile.uid), {
-                applicantId: userProfile.uid,
-                applicantName: userProfile.name,
-                applicantEmoji: userProfile.emoji || "🎵",
-                bandId: selectedBand === "solo" ? null : selectedBand,
-                bandName: selectedBand === "solo" ? `${userProfile.name} (Solo)` : band?.name || "",
-                message: message.trim(),
-                appliedAt: new Date().toISOString(),
-                status: "pending",
-            }, { merge: true });
+
+            await setDoc(
+                doc(db, "gigOpenings", gig.id, "applications", userProfile.uid),
+                {
+                    applicantId: userProfile.uid,
+                    applicantName: userProfile.name,
+                    applicantEmoji: userProfile.emoji || "🎵",
+                    bandId: selectedBand === "solo" ? null : selectedBand,
+                    bandName: selectedBand === "solo" ? `${userProfile.name} (Solo)` : band?.name || "",
+                    message: message.trim(),
+                    appliedAt: new Date().toISOString(),
+                    status: "pending",
+                },
+                { merge: true }
+            );
+
             onSuccess();
-        } catch (e) { alert(e.message); }
+        } catch (e) {
+            alert(e.message);
+        }
         setLoading(false);
     };
 
@@ -343,7 +351,12 @@ function GigApplyForm({ gig, myBands, userProfile, onClose, onSuccess }) {
             </div>
             <div className="fg">
                 <label className="fl">Message to Venue</label>
-                <textarea className="fta" placeholder="Tell the venue about your music, experience, and why you'd be a great fit..." value={message} onChange={e => setMessage(e.target.value)} />
+                <textarea
+                    className="fta"
+                    placeholder="Tell the venue about your music, experience, and why you'd be a great fit..."
+                    value={message}
+                    onChange={e => setMessage(e.target.value)}
+                />
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
                 <button className="btn1" style={{ flex: 1, padding: 14 }} onClick={submit} disabled={loading}>
@@ -374,7 +387,13 @@ function ShowCard({ show, onInt }) {
                         {show.genres.map(g => <span key={g} className="sp sp-r">{g}</span>)}
                     </div>
                     <div className="show-band">
-                        <div className="show-bavs">{show.band.members.map((m, i) => <div key={i} className="show-bav" style={{ background: ["#f0e6d3", "#e8f0e6", "#e6eaf0"][i % 3] }}>{m}</div>)}</div>
+                        <div className="show-bavs">
+                            {show.band.members.map((m, i) => (
+                                <div key={i} className="show-bav" style={{ background: ["#f0e6d3", "#e8f0e6", "#e6eaf0"][i % 3] }}>
+                                    {m}
+                                </div>
+                            ))}
+                        </div>
                         <span className="show-bnm">{show.band.name}</span>
                         {show.band.appBand && <span className="show-app">on app</span>}
                     </div>
@@ -382,7 +401,9 @@ function ShowCard({ show, onInt }) {
             </div>
             <div className="show-bot">
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>{show.interested} interested</span>
-                <button className={`lm-int-btn${show.iMe ? " on" : ""}`} onClick={() => onInt(show.id)}>{show.iMe ? "✓ Interested" : "Interested"}</button>
+                <button className={`lm-int-btn${show.iMe ? " on" : ""}`} onClick={() => onInt(show.id)}>
+                    {show.iMe ? "✓ Interested" : "Interested"}
+                </button>
             </div>
         </div>
     );
@@ -393,7 +414,10 @@ function VenueCard({ v }) {
         <div className="venue-card">
             <div className="venue-hdr">
                 <div className="venue-em">{v.emoji}</div>
-                <div><div className="venue-nm">{v.name}</div><div className="venue-addr">📍 {v.addr}</div></div>
+                <div>
+                    <div className="venue-nm">{v.name}</div>
+                    <div className="venue-addr">📍 {v.addr}</div>
+                </div>
             </div>
             <div className="venue-body">
                 <div className="venue-nights">
@@ -413,7 +437,8 @@ function LiveMusic({ shows, setShows }) {
     const [sub, setSub] = useState("tonight");
     const [gf, setGf] = useState("All");
     const tonight = shows.find(s => s.tonight);
-    const toggleInt = id => setShows(p => p.map(s => s.id === id ? { ...s, iMe: !s.iMe, interested: s.interested + (s.iMe ? -1 : 1) } : s));
+    const toggleInt = id =>
+        setShows(p => p.map(s => s.id === id ? { ...s, iMe: !s.iMe, interested: s.interested + (s.iMe ? -1 : 1) } : s));
     const upcoming = shows.filter(s => gf === "All" || s.genres.includes(gf));
 
     return (
@@ -447,16 +472,28 @@ function LiveMusic({ shows, setShows }) {
                                         {tonight.genres.map(g => <span key={g} className="lm-pill lm-pill-g">{g}</span>)}
                                     </div>
                                     <div className="lm-feat-band">
-                                        <div className="lm-bavs">{tonight.band.members.map((m, i) => <div key={i} className="lm-bav" style={{ background: ["#3a1a08", "#1a2a08", "#08182a"][i % 3] }}>{m}</div>)}</div>
+                                        <div className="lm-bavs">
+                                            {tonight.band.members.map((m, i) => (
+                                                <div key={i} className="lm-bav" style={{ background: ["#3a1a08", "#1a2a08", "#08182a"][i % 3] }}>
+                                                    {m}
+                                                </div>
+                                            ))}
+                                        </div>
                                         <div className="lm-binfo">
                                             <span className="lm-bnm">{tonight.band.name}</span>
-                                            {tonight.band.appBand && <span style={{ fontSize: 10, color: "var(--al)", marginLeft: 6, background: "rgba(230,168,74,.15)", padding: "1px 6px", borderRadius: 6 }}>on app</span>}
+                                            {tonight.band.appBand && (
+                                                <span style={{ fontSize: 10, color: "var(--al)", marginLeft: 6, background: "rgba(230,168,74,.15)", padding: "1px 6px", borderRadius: 6 }}>
+                                                    on app
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="lm-feat-bot">
                                     <span style={{ fontSize: 12, color: "var(--muted)" }}>{tonight.interested} people interested</span>
-                                    <button className={`lm-int-btn${tonight.iMe ? " on" : ""}`} onClick={() => toggleInt(tonight.id)}>{tonight.iMe ? "✓ Interested" : "I'm Interested"}</button>
+                                    <button className={`lm-int-btn${tonight.iMe ? " on" : ""}`} onClick={() => toggleInt(tonight.id)}>
+                                        {tonight.iMe ? "✓ Interested" : "I'm Interested"}
+                                    </button>
                                 </div>
                             </div>
                             <div className="sh"><div className="st">Also This Week</div></div>
@@ -480,7 +517,13 @@ function LiveMusic({ shows, setShows }) {
                         ))}
                     </div>
                     {upcoming.map(s => <ShowCard key={s.id} show={s} onInt={toggleInt} />)}
-                    {upcoming.length === 0 && <div className="es"><div className="ei">🎵</div><div className="et">No shows found</div><div className="ed">Try a different genre filter</div></div>}
+                    {upcoming.length === 0 && (
+                        <div className="es">
+                            <div className="ei">🎵</div>
+                            <div className="et">No shows found</div>
+                            <div className="ed">Try a different genre filter</div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -510,8 +553,12 @@ function MCard({ m, onClick, minor }) {
             <div className="cbody">
                 <div className="cname">{m.name}</div><div className="cinst">{m.instrument}</div>
                 <div className="cgens">{m.genres.map(g => <span key={g} className="gtag">{g}</span>)}</div>
-                {blocked ? <div style={{ fontSize: 11, color: "var(--safe)", fontWeight: 500 }}>🔒 Minor profile</div>
-                    : <><div className="clook">🎯 {m.looking}</div><div className="cdist">📍 {m.dist}</div></>}
+                {blocked
+                    ? <div style={{ fontSize: 11, color: "var(--safe)", fontWeight: 500 }}>🔒 Minor profile</div>
+                    : <>
+                        <div className="clook">🎯 {m.looking}</div>
+                        <div className="cdist">📍 {m.dist}</div>
+                    </>}
             </div>
         </div>
     );
@@ -535,17 +582,32 @@ function BCard({ b, onClick }) {
                 </div>
             </div>
             <div className="bbody">
-                <div className="sbar"><div className="sblab"><span>Roster</span><span>{filled}/{b.members.length} filled</span></div><div className="sbtr"><div className="sbfi" style={{ width: `${pct}%` }} /></div></div>
+                <div className="sbar">
+                    <div className="sblab"><span>Roster</span><span>{filled}/{b.members.length} filled</span></div>
+                    <div className="sbtr"><div className="sbfi" style={{ width: `${pct}%` }} /></div>
+                </div>
                 <div className="bmrow">
-                    <div className="bmavs">{b.members.map((m, i) => <div key={i} className="bmav" style={{ background: m.filled ? ["#f0e6d3", "#e8f0e6", "#e6eaf0", "#f0e6ea", "#eef0e6"][i % 5] : "#eee", opacity: m.filled ? 1 : .4 }}>{m.filled ? m.emoji : "?"}</div>)}</div>
+                    <div className="bmavs">
+                        {b.members.map((m, i) => (
+                            <div key={i} className="bmav" style={{ background: m.filled ? ["#f0e6d3", "#e8f0e6", "#e6eaf0", "#f0e6ea", "#eef0e6"][i % 5] : "#eee", opacity: m.filled ? 1 : .4 }}>
+                                {m.filled ? m.emoji : "?"}
+                            </div>
+                        ))}
+                    </div>
                     <div style={{ fontSize: 12, color: "var(--muted)" }}>{b.members.length} members · {open.length} open</div>
                 </div>
-                <div className="bseek">{b.members.map((m, i) => <span key={i} className={`stag ${m.filled ? "sfill" : "sopen"}`}>{m.filled ? "✓" : "!"} {m.role}</span>)}</div>
+                <div className="bseek">
+                    {b.members.map((m, i) => <span key={i} className={`stag ${m.filled ? "sfill" : "sopen"}`}>{m.filled ? "✓" : "!"} {m.role}</span>)}
+                </div>
                 <div className="bdesc">{b.desc}</div>
             </div>
             <div className="bfoot">
-                {b.isMyBand ? <button className="btn1" style={{ fontSize: 13 }}>⚙️ Manage Band</button>
-                    : <><button className="btn1" style={{ fontSize: 13 }} onClick={e => e.stopPropagation()}>Apply to Join</button><button className="btn2" style={{ fontSize: 13 }} onClick={e => e.stopPropagation()}>Message</button></>}
+                {b.isMyBand
+                    ? <button className="btn1" style={{ fontSize: 13 }}>⚙️ Manage Band</button>
+                    : <>
+                        <button className="btn1" style={{ fontSize: 13 }} onClick={e => e.stopPropagation()}>Apply to Join</button>
+                        <button className="btn2" style={{ fontSize: 13 }} onClick={e => e.stopPropagation()}>Message</button>
+                    </>}
             </div>
         </div>
     );
@@ -574,7 +636,8 @@ function ECard({ ev, onJoin, minor }) {
                     <div className="egav">{ev.going.map((g, i) => <div key={i} className="goa" style={{ background: ["#f0e6d3", "#e8f0e6", "#e6eaf0"][i % 3] }}>{g}</div>)}</div>
                     <span>{ev.going.length} going</span>
                 </div>
-                {restricted ? <span style={{ fontSize: 11, color: "var(--rust)", fontWeight: 500 }}>🔒 18+</span>
+                {restricted
+                    ? <span style={{ fontSize: 11, color: "var(--rust)", fontWeight: 500 }}>🔒 18+</span>
                     : <button className={`jbtn${ev.joined ? " jd" : ""}`} onClick={() => onJoin(ev.id)}>{ev.joined ? "✓ Going" : "Join"}</button>}
             </div>
         </div>
@@ -582,19 +645,31 @@ function ECard({ ev, onJoin, minor }) {
 }
 
 function Chat({ conv, musician, onBack, onSend, onJamReq }) {
-    const [txt, setTxt] = useState(""); const [showSched, setShowSched] = useState(false); const [selTime, setSelTime] = useState(null); const [accepted, setAccepted] = useState({});
+    const [txt, setTxt] = useState("");
+    const [showSched, setShowSched] = useState(false);
+    const [selTime, setSelTime] = useState(null);
+    const [accepted, setAccepted] = useState({});
     const endRef = useRef(null);
+
     useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }) }, [conv.messages]);
+
     const times = ["Fri Apr 4 · 7PM", "Sat Apr 5 · 3PM", "Sat Apr 5 · 7PM", "Sun Apr 6 · 2PM", "Sun Apr 6 · 6PM", "Fri Apr 11 · 7PM"];
     const send = () => { if (!txt.trim()) return; onSend(conv.id, txt.trim()); setTxt(""); };
+
     return (
         <div className="cs">
             <div className="chdr">
                 <button className="cback" onClick={onBack}>‹</button>
                 <div className="chav" style={{ background: musician.bg }}>{musician.emoji}</div>
-                <div style={{ flex: 1 }}><div className="chnm">{musician.name}</div><div className="chst">{musician.instrument} · {musician.online ? "🟢 Online" : "⚪ Offline"}</div></div>
-                <div className="chac"><button className="chab" onClick={() => setShowSched(v => !v)}>📅</button></div>
+                <div style={{ flex: 1 }}>
+                    <div className="chnm">{musician.name}</div>
+                    <div className="chst">{musician.instrument} · {musician.online ? "🟢 Online" : "⚪ Offline"}</div>
+                </div>
+                <div className="chac">
+                    <button className="chab" onClick={() => setShowSched(v => !v)}>📅</button>
+                </div>
             </div>
+
             <div className="cmsgs">
                 <div className="cdiv">Today</div>
                 {conv.messages.map(msg => {
@@ -608,33 +683,64 @@ function Chat({ conv, musician, onBack, onSend, onJamReq }) {
                                     <div className="jrc">
                                         <div className="jrh">📅 Jam Request</div><div className="jrt">Let's jam!</div>
                                         <div className="jrd">🕐 {msg.proposed}<br />📍 Venue TBD</div>
-                                        {acc === undefined && !me ? <div className="jra"><button className="jracc" onClick={() => setAccepted(p => ({ ...p, [msg.id]: true }))}>✓ Accept</button><button className="jrdec" onClick={() => setAccepted(p => ({ ...p, [msg.id]: false }))}>✗ Decline</button></div>
-                                            : <div style={{ fontSize: 12, fontWeight: 600, color: acc === false ? "var(--rust)" : "var(--sage)", marginTop: 6 }}>{acc === false ? "✗ Declined" : me ? "⏳ Awaiting…" : "✓ Accepted!"}</div>}
+                                        {acc === undefined && !me ? (
+                                            <div className="jra">
+                                                <button className="jracc" onClick={() => setAccepted(p => ({ ...p, [msg.id]: true }))}>✓ Accept</button>
+                                                <button className="jrdec" onClick={() => setAccepted(p => ({ ...p, [msg.id]: false }))}>✗ Decline</button>
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: acc === false ? "var(--rust)" : "var(--sage)", marginTop: 6 }}>
+                                                {acc === false ? "✗ Declined" : me ? "⏳ Awaiting…" : "✓ Accepted!"}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className={`mt${me ? "" : " lft"}`}>{msg.time}</div>
                                 </div>
                             </div>
                         );
                     }
+
                     return (
                         <div key={msg.id} className={`mr${me ? " me" : ""}`}>
                             {!me && <div className="masm" style={{ background: musician.bg }}>{musician.emoji}</div>}
-                            <div><div className={`mb ${me ? "me" : "th"}`}>{msg.text}</div><div className={`mt${me ? "" : " lft"}`}>{msg.time}</div></div>
+                            <div>
+                                <div className={`mb ${me ? "me" : "th"}`}>{msg.text}</div>
+                                <div className={`mt${me ? "" : " lft"}`}>{msg.time}</div>
+                            </div>
                         </div>
                     );
                 })}
                 <div ref={endRef} />
             </div>
+
             {showSched && (
                 <div className="jsch">
                     <div className="jstit">📅 Propose a Jam Time</div>
-                    <div className="jtgr">{times.map(t => <div key={t} className={`jtb${selTime === t ? " on" : ""}`} onClick={() => setSelTime(t)}>{t}</div>)}</div>
-                    <button className="jsnd" style={{ opacity: selTime ? 1 : .5 }} onClick={() => { if (!selTime) return; onJamReq(conv.id, selTime); setSelTime(null); setShowSched(false); }}>Send Jam Request</button>
+                    <div className="jtgr">
+                        {times.map(t => <div key={t} className={`jtb${selTime === t ? " on" : ""}`} onClick={() => setSelTime(t)}>{t}</div>)}
+                    </div>
+                    <button
+                        className="jsnd"
+                        style={{ opacity: selTime ? 1 : .5 }}
+                        onClick={() => { if (!selTime) return; onJamReq(conv.id, selTime); setSelTime(null); setShowSched(false); }}
+                    >
+                        Send Jam Request
+                    </button>
                 </div>
             )}
+
             <div className="cinp">
                 <button className="cxb" onClick={() => setShowSched(v => !v)}>📅</button>
-                <textarea className="ctxt" placeholder="Message..." value={txt} onChange={e => setTxt(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} rows={1} />
+                <textarea
+                    className="ctxt"
+                    placeholder="Message..."
+                    value={txt}
+                    onChange={e => setTxt(e.target.value)}
+                    onKeyDown={e => {
+                        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+                    }}
+                    rows={1}
+                />
                 <button className="csnd" disabled={!txt.trim()} onClick={send}>➤</button>
             </div>
         </div>
@@ -645,21 +751,41 @@ function Inbox({ convs, onOpen }) {
     const uc = convs.filter(c => c.unread).length;
     return (
         <div className="pg">
-            <div className="hero" style={{ padding: "20px 20px 16px" }}><div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Messages {uc > 0 && <em style={{ fontSize: 16 }}>· {uc} new</em>}</div></div>
+            <div className="hero" style={{ padding: "20px 20px 16px" }}>
+                <div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>
+                    Messages {uc > 0 && <em style={{ fontSize: 16 }}>· {uc} new</em>}
+                </div>
+            </div>
             <div className="ilist">
                 {convs.map(c => {
                     const m = c.musician;
-                    if (!m) return null; const last = c.messages[c.messages.length - 1];
-                    const prev = last.type === "jam_request" ? "📅 Jam request" : (last.from === "me" ? `You: ${last.text}` : last.text);
+                    if (!m) return null;
+                    const last = c.messages[c.messages.length - 1];
+                    const prev = last?.type === "jam_request" ? "📅 Jam request" : (last?.from === "me" ? `You: ${last.text}` : last?.text);
                     return (
                         <div key={c.id} className={`iit${c.unread ? " unr" : ""}`} onClick={() => onOpen(c.id)}>
                             <div className="iav" style={{ background: m.bg }}>{m.emoji}{m.online && <div className="ionl" />}</div>
-                            <div className="iinf"><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div className="inam">{m.name}</div><span style={{ fontSize: 10, color: "var(--amber)", fontWeight: 500 }}>{m.instrument}</span></div><div className="ipre">{prev}</div></div>
-                            <div className="imet"><div className="itim">{last.time}</div>{c.unread && <div className="iudot" />}</div>
+                            <div className="iinf">
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <div className="inam">{m.name}</div>
+                                    <span style={{ fontSize: 10, color: "var(--amber)", fontWeight: 500 }}>{m.instrument}</span>
+                                </div>
+                                <div className="ipre">{prev}</div>
+                            </div>
+                            <div className="imet">
+                                <div className="itim">{last?.time}</div>
+                                {c.unread && <div className="iudot" />}
+                            </div>
                         </div>
                     );
                 })}
-                {convs.length === 0 && <div className="es"><div className="ei">💬</div><div className="et">No messages yet</div><div className="ed">Tap Message on any musician to start a conversation.</div></div>}
+                {convs.length === 0 && (
+                    <div className="es">
+                        <div className="ei">💬</div>
+                        <div className="et">No messages yet</div>
+                        <div className="ed">Tap Message on any musician to start a conversation.</div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -679,6 +805,7 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
                     <div><span className="stn">{shows.length}</span><span className="stl">Shows this month</span></div>
                 </div>
             </div>
+
             {tonight && (
                 <>
                     <div className="sh"><div className="st">Live Tonight</div><button className="sl" onClick={goLive}>See all</button></div>
@@ -696,13 +823,30 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
                     </div>
                 </>
             )}
+
             <div className="sh"><div className="st">Musicians Nearby</div><button className="sl">See all</button></div>
-            <div className="chips">{["All", "Guitar", "Drums", "Keys", "Vocals", "Bass"].map(f => <div key={f} className={`chip${filter === f ? " on" : ""}`} onClick={() => setFilter(f)}>{f}</div>)}</div>
-            <div className="cscroll">{musicians.filter(m => filter === "All" || m.instrument === filter).map(m => <MCard key={m.id} m={m} onClick={onM} minor={minor} />)}</div>
+            <div className="chips">
+                {["All", "Guitar", "Drums", "Keys", "Vocals", "Bass"].map(f => (
+                    <div key={f} className={`chip${filter === f ? " on" : ""}`} onClick={() => setFilter(f)}>{f}</div>
+                ))}
+            </div>
+            <div className="cscroll">
+                {musicians.filter(m => filter === "All" || m.instrument === filter).map(m => <MCard key={m.id} m={m} onClick={onM} minor={minor} />)}
+            </div>
+
             <div className="sh" style={{ marginTop: 8 }}><div className="st">Bands Seeking Members</div></div>
             {bands.filter(b => b.members.some(m => !m.filled)).slice(0, 2).map(b => <BCard key={b.id} b={b} onClick={onB} />)}
+
             <div className="sh"><div className="st">Upcoming Events</div></div>
-            {minor && <div className="sban"><div className="sico">🛡️</div><div><div className="stit">Showing all-ages events only</div><div className="stxt">Always let a trusted adult know where you're going.</div></div></div>}
+            {minor && (
+                <div className="sban">
+                    <div className="sico">🛡️</div>
+                    <div>
+                        <div className="stit">Showing all-ages events only</div>
+                        <div className="stxt">Always let a trusted adult know where you're going.</div>
+                    </div>
+                </div>
+            )}
             {events.filter(e => !minor || e.allAges).slice(0, 3).map(e => <ECard key={e.id} ev={e} onJoin={onJoin} minor={minor} />)}
         </div>
     );
@@ -715,25 +859,40 @@ function MyApplications({ userId }) {
     useEffect(() => {
         const fetch = async () => {
             try {
-                const { collectionGroup, query, where, getDocs } = await import("firebase/firestore");
+                const { collection, getDocs } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
-                const q = query(collectionGroup(db, "applications"), where("applicantId", "==", userId));
-                const snap = await getDocs(q);
-                const myApps = snap.docs.map(d => ({
-                    ...d.data(),
-                    gigId: d.ref.parent.parent.id,
-                }));
-                // fetch gig names for each
-                const { doc, getDoc } = await import("firebase/firestore");
-                const enriched = await Promise.all(myApps.map(async app => {
-                    const gigDoc = await getDoc(doc(db, "gigOpenings", app.gigId));
-                    const gig = gigDoc.data();
-                    return { ...app, gigName: gig?.name || "Unknown Gig", venueName: gig?.venueName || "", month: gig?.month || "", day: gig?.day || "", pay: gig?.pay || null };
-                }));
-                setApps(enriched);
-            } catch (e) { console.error(e); }
+
+                const gigsSnap = await getDocs(collection(db, "gigOpenings"));
+                const myApps = [];
+
+                await Promise.all(
+                    gigsSnap.docs.map(async gigDoc => {
+                        const appSnap = await getDocs(collection(db, "gigOpenings", gigDoc.id, "applications"));
+                        const userApp = appSnap.docs.find(d => d.id === userId);
+
+                        if (userApp) {
+                            const gig = gigDoc.data();
+                            myApps.push({
+                                ...userApp.data(),
+                                appId: userApp.id,
+                                gigId: gigDoc.id,
+                                gigName: gig.name || "Unknown Gig",
+                                venueName: gig.venueName || "",
+                                month: gig.month || "",
+                                day: gig.day || "",
+                                pay: gig.pay || null,
+                            });
+                        }
+                    })
+                );
+
+                setApps(myApps);
+            } catch (e) {
+                console.error(e);
+            }
             setLoading(false);
         };
+
         fetch();
     }, [userId]);
 
@@ -742,9 +901,13 @@ function MyApplications({ userId }) {
     return (
         <div>
             {apps.length === 0 ? (
-                <div className="es"><div className="ei">📬</div><div className="et">No applications yet</div><div className="ed">Apply for gig openings in the Gig Openings tab.</div></div>
-            ) : apps.map((app, i) => (
-                <div key={i} style={{ margin: "0 20px 12px", background: "#fff", borderRadius: 14, border: "2px solid var(--border)", overflow: "hidden" }}>
+                <div className="es">
+                    <div className="ei">📬</div>
+                    <div className="et">No applications yet</div>
+                    <div className="ed">Apply for gig openings in the Gig Openings tab.</div>
+                </div>
+            ) : apps.map(app => (
+                <div key={app.gigId} style={{ margin: "0 20px 12px", background: "#fff", borderRadius: 14, border: "2px solid var(--border)", overflow: "hidden" }}>
                     <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", padding: "12px 16px" }}>
                         <div style={{ fontFamily: "Playfair Display,serif", fontSize: 16, color: "var(--parchment)", marginBottom: 2 }}>{app.gigName}</div>
                         <div style={{ fontSize: 12, color: "var(--al)" }}>📍 {app.venueName} · 📅 {app.month} {app.day}</div>
@@ -770,30 +933,62 @@ function MyApplications({ userId }) {
     );
 }
 
-function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId }) {
+function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId, appliedGigIds }) {
     const [tab, setTab] = useState("discover");
-    const shown = tab === "mybands" ? bands.filter(b => b.isMyBand) : tab === "seeking" ? bands.filter(b => b.members.some(m => !m.filled)) : bands;
+    const shown = tab === "mybands"
+        ? bands.filter(b => b.isMyBand)
+        : tab === "seeking"
+            ? bands.filter(b => b.members.some(m => !m.filled))
+            : bands;
+
     return (
         <div className="pg">
-            <div className="hero" style={{ padding: "20px 20px 16px" }}><div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Bands & <em>Ensembles</em></div></div>
-            <div className="trow">{[["discover", "Discover"], ["seeking", "Seeking"], ["gigs", "Gig Openings"], ["mybands", "My Bands"], ["applied", "My Applications"]].map(([id, l]) => <div key={id} className={`ti${tab === id ? " on" : ""}`} onClick={() => setTab(id)}>{l}</div>)}</div>
+            <div className="hero" style={{ padding: "20px 20px 16px" }}>
+                <div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Bands & <em>Ensembles</em></div>
+            </div>
+
+            <div className="trow">
+                {[
+                    ["discover", "Discover"],
+                    ["seeking", "Seeking"],
+                    ["gigs", "Gig Openings"],
+                    ["mybands", "My Bands"],
+                    ["applied", "My Applications"],
+                ].map(([id, l]) => (
+                    <div key={id} className={`ti${tab === id ? " on" : ""}`} onClick={() => setTab(id)}>{l}</div>
+                ))}
+            </div>
+
             <div style={{ height: 12 }} />
+
             {tab !== "gigs" && tab !== "applied" && shown.map(b => <BCard key={b.id} b={b} onClick={onB} />)}
-            {tab !== "gigs" && tab !== "applied" && <div style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }} onClick={onCreate}>
-                <div style={{ fontSize: 28, marginBottom: 6 }}>🎵</div>
-                <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Create a Band Profile</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>List your open slots and find members</div>
-            </div>}
+
+            {tab !== "gigs" && tab !== "applied" && (
+                <div
+                    style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }}
+                    onClick={onCreate}
+                >
+                    <div style={{ fontSize: 28, marginBottom: 6 }}>🎵</div>
+                    <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Create a Band Profile</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>List your open slots and find members</div>
+                </div>
+            )}
+
             {tab === "gigs" && (
                 <div>
                     {gigOpenings.length === 0 ? (
-                        <div className="es"><div className="ei">🎸</div><div className="et">No gig openings yet</div><div className="ed">Venues will post paid gig opportunities here. Check back soon.</div></div>
+                        <div className="es">
+                            <div className="ei">🎸</div>
+                            <div className="et">No gig openings yet</div>
+                            <div className="ed">Venues will post paid gig opportunities here. Check back soon.</div>
+                        </div>
                     ) : gigOpenings.map(g => (
                         <div key={g.id} style={{ margin: "0 20px 12px", background: "#fff", borderRadius: 14, border: "2px solid var(--border)", overflow: "hidden" }}>
                             <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", padding: "14px 16px" }}>
                                 <div style={{ fontFamily: "Playfair Display,serif", fontSize: 17, color: "var(--parchment)", marginBottom: 2 }}>{g.name}</div>
                                 <div style={{ fontSize: 12, color: "var(--al)", fontWeight: 500 }}>📍 {g.venueName}</div>
                             </div>
+
                             <div style={{ padding: "12px 16px" }}>
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                                     <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "#fef3e2", color: "var(--amber)", border: "1px solid #f5dba0" }}>📅 {g.month} {g.day}</span>
@@ -801,13 +996,32 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId }) {
                                     {g.allAges && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--safel)", color: "var(--safe)", border: "1px solid var(--safeb)" }}>✅ All Ages</span>}
                                     <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "var(--warm)", color: "var(--muted)", border: "1px solid var(--border)" }}>{g.type}</span>
                                 </div>
+
                                 {g.notes && <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5, marginBottom: 10 }}>{g.notes}</div>}
-                                <button className="btn1" style={{ width: "100%", padding: 10, fontSize: 13 }} onClick={() => onApply(g)}>🎸 Apply for This Gig</button>
+
+                                {appliedGigIds?.has(g.id) ? (
+                                    <button
+                                        className="btn1"
+                                        style={{ width: "100%", padding: 10, fontSize: 13, background: "var(--sage)", cursor: "default" }}
+                                        disabled
+                                    >
+                                        ✓ Application Submitted
+                                    </button>
+                                ) : (
+                                    <button
+                                        className="btn1"
+                                        style={{ width: "100%", padding: 10, fontSize: 13 }}
+                                        onClick={() => onApply(g)}
+                                    >
+                                        🎸 Apply for This Gig
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
             {tab === "applied" && <MyApplications userId={userId} />}
         </div>
     );
@@ -815,15 +1029,45 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId }) {
 
 function Events({ events, onJoin, minor, onAdd }) {
     const [f, setF] = useState("All");
-    const shown = events.filter(e => f === "All" || (f === "Open Mic" && e.type === "openmic") || (f === "Jam" && e.type === "jam") || (f === "Gig" && e.type === "gig") || (f === "All Ages" && e.allAges));
+    const shown = events.filter(e =>
+        f === "All" ||
+        (f === "Open Mic" && e.type === "openmic") ||
+        (f === "Jam" && e.type === "jam") ||
+        (f === "Gig" && e.type === "gig") ||
+        (f === "All Ages" && e.allAges)
+    );
+
     return (
         <div className="pg">
-            <div className="hero" style={{ padding: "20px 20px 16px" }}><div className="hgreet">Grand Junction, CO</div><div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Musician Events & <em>Jams</em></div></div>
+            <div className="hero" style={{ padding: "20px 20px 16px" }}>
+                <div className="hgreet">Grand Junction, CO</div>
+                <div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Musician Events & <em>Jams</em></div>
+            </div>
             <div className="sh"><div className="st">April 2026</div></div>
-            <div className="chips">{["All", "Open Mic", "Jam", "Gig", "All Ages"].map(x => <div key={x} className={`chip${f === x ? " on" : ""}`} onClick={() => setF(x)}>{x}</div>)}</div>
-            {minor && <div className="sban"><div className="sico">🛡️</div><div><div className="stit">Your safety matters</div><div className="stxt">18+ events are marked. Always go with someone you trust.</div></div></div>}
-            <div style={{ paddingTop: 4 }}>{shown.map(e => <ECard key={e.id} ev={e} onJoin={onJoin} minor={minor} />)}</div>
-            <div style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }} onClick={onAdd}>
+            <div className="chips">
+                {["All", "Open Mic", "Jam", "Gig", "All Ages"].map(x => (
+                    <div key={x} className={`chip${f === x ? " on" : ""}`} onClick={() => setF(x)}>{x}</div>
+                ))}
+            </div>
+
+            {minor && (
+                <div className="sban">
+                    <div className="sico">🛡️</div>
+                    <div>
+                        <div className="stit">Your safety matters</div>
+                        <div className="stxt">18+ events are marked. Always go with someone you trust.</div>
+                    </div>
+                </div>
+            )}
+
+            <div style={{ paddingTop: 4 }}>
+                {shown.map(e => <ECard key={e.id} ev={e} onJoin={onJoin} minor={minor} />)}
+            </div>
+
+            <div
+                style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }}
+                onClick={onAdd}
+            >
                 <div style={{ fontSize: 24, marginBottom: 6 }}>➕</div>
                 <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Add an Event</div>
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>Know of an open mic? Add it for the community</div>
@@ -844,87 +1088,352 @@ function Profile({ onEdit, profile }) {
                     {profile.looking.map(l => <span key={l} className="bdg bds">{l}</span>)}
                 </div>
             </div>
-            <div className="psec"><div className="pstit">Looking For</div><div className="plook">{profile.looking.map(l => <div key={l} className="li">🎯 {l}</div>)}</div></div>
-            <div className="psec"><div className="pstit">Availability</div><div className="agr">{DAYS.map(d => <div key={d} className={`ad ${profile.availability.includes(d) ? "av" : "bz"}`}><span className="bp">{d}</span><span className="bs">{profile.availability.includes(d) ? "Free" : "Busy"}</span></div>)}</div></div>
-            <div className="psec"><div className="pstit">About</div><div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6 }}>{profile.about || "No bio yet."}</div></div>
+
+            <div className="psec">
+                <div className="pstit">Looking For</div>
+                <div className="plook">{profile.looking.map(l => <div key={l} className="li">🎯 {l}</div>)}</div>
+            </div>
+
+            <div className="psec">
+                <div className="pstit">Availability</div>
+                <div className="agr">
+                    {DAYS.map(d => (
+                        <div key={d} className={`ad ${profile.availability.includes(d) ? "av" : "bz"}`}>
+                            <span className="bp">{d}</span>
+                            <span className="bs">{profile.availability.includes(d) ? "Free" : "Busy"}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="psec">
+                <div className="pstit">About</div>
+                <div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6 }}>{profile.about || "No bio yet."}</div>
+            </div>
+
             <div style={{ padding: "16px 20px 8px", display: "flex", flexDirection: "column", gap: 10 }}>
                 <button className="btn1" style={{ width: "100%", padding: 14, fontSize: 15 }} onClick={onEdit}>✏️ Edit Profile</button>
                 <button className="btn2" style={{ width: "100%", padding: 12, textAlign: "center", fontSize: 14 }}>🛡️ Privacy & Safety Settings</button>
-                <button className="btn2" style={{ width: "100%", padding: 12, textAlign: "center", fontSize: 14, color: "var(--rust)" }} onClick={() => import("../../lib/firebase").then(m => import("firebase/auth").then(a => a.signOut(m.auth)))}>🚪 Sign Out</button>
+                <button
+                    className="btn2"
+                    style={{ width: "100%", padding: 12, textAlign: "center", fontSize: 14, color: "var(--rust)" }}
+                    onClick={() => import("../../lib/firebase").then(m => import("firebase/auth").then(a => a.signOut(m.auth)))}
+                >
+                    🚪 Sign Out
+                </button>
             </div>
         </div>
     );
 }
+
 function AddEventModal({ onClose, onAdd }) {
-    const [name, setName] = useState(""); const [venue, setVenue] = useState(""); const [type, setType] = useState("openmic"); const [allAges, setAllAges] = useState(false); const [slots, setSlots] = useState(""); const [date, setDate] = useState(""); const [errs, setErrs] = useState({});
-    const go = () => { const e = {}; if (!name.trim()) e.name = "Required"; if (!venue.trim()) e.venue = "Required"; if (!date) e.date = "Required"; setErrs(e); if (Object.keys(e).length) return; const d = new Date(date + "T12:00:00"); onAdd({ name: name.trim(), venue: venue.trim(), type, allAges, slots: parseInt(slots) || 0, month: MONS[d.getMonth()].toUpperCase(), day: String(d.getDate()).padStart(2, "0"), dow: DOWL[d.getDay()].toUpperCase(), going: [], joined: false }); onClose(); };
+    const [name, setName] = useState("");
+    const [venue, setVenue] = useState("");
+    const [type, setType] = useState("openmic");
+    const [allAges, setAllAges] = useState(false);
+    const [slots, setSlots] = useState("");
+    const [date, setDate] = useState("");
+    const [errs, setErrs] = useState({});
+
+    const go = () => {
+        const e = {};
+        if (!name.trim()) e.name = "Required";
+        if (!venue.trim()) e.venue = "Required";
+        if (!date) e.date = "Required";
+        setErrs(e);
+        if (Object.keys(e).length) return;
+
+        const d = new Date(date + "T12:00:00");
+        onAdd({
+            name: name.trim(),
+            venue: venue.trim(),
+            type,
+            allAges,
+            slots: parseInt(slots) || 0,
+            month: MONS[d.getMonth()].toUpperCase(),
+            day: String(d.getDate()).padStart(2, "0"),
+            dow: DOWL[d.getDay()].toUpperCase(),
+            going: [],
+            joined: false
+        });
+
+        onClose();
+    };
+
     return (
-        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
-            <div className="mhnd" /><div className="mtit">Add an Event</div>
-            <div className="fg"><label className="fl">Event Name *</label><input className="fi" placeholder="e.g. Wednesday Open Mic" value={name} onChange={e => setName(e.target.value)} style={{ borderColor: errs.name ? "var(--rust)" : "" }} />{errs.name && <div style={{ fontSize: 11, color: "var(--rust)", marginTop: 4 }}>{errs.name}</div>}</div>
-            <div className="fg"><label className="fl">Venue *</label><input className="fi" placeholder="e.g. The Rabbit Hole Bar" value={venue} onChange={e => setVenue(e.target.value)} style={{ borderColor: errs.venue ? "var(--rust)" : "" }} /></div>
-            <div className="frow"><div className="fg"><label className="fl">Date *</label><input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} style={{ borderColor: errs.date ? "var(--rust)" : "" }} /></div><div className="fg"><label className="fl">Slots</label><input className="fi" type="number" placeholder="0" min="0" max="30" value={slots} onChange={e => setSlots(e.target.value)} /></div></div>
-            <div className="fg"><label className="fl">Type</label><div className="cbg">{[["openmic", "🎤 Open Mic"], ["jam", "🥁 Jam"], ["gig", "🎸 Gig"]].map(([v, l]) => <div key={v} className={`cbl${type === v ? " ck" : ""}`} onClick={() => setType(v)}>{l}</div>)}</div></div>
-            <div className="fg"><label className="fl">Age Policy</label><div className="cbg"><div className={`cbl${allAges ? " ck" : ""}`} onClick={() => setAllAges(true)}>✅ All Ages</div><div className={`cbl${!allAges ? " ck" : ""}`} onClick={() => setAllAges(false)}>🔞 18+ Only</div></div></div>
-            <div style={{ display: "flex", gap: 10, marginTop: 6 }}><button className="btn1" onClick={go}>Add Event</button><button className="btn2" onClick={onClose}>Cancel</button></div>
-        </div></div>
+        <div className="ov" onClick={onClose}>
+            <div className="mod" onClick={e => e.stopPropagation()}>
+                <div className="mhnd" />
+                <div className="mtit">Add an Event</div>
+
+                <div className="fg">
+                    <label className="fl">Event Name *</label>
+                    <input className="fi" placeholder="e.g. Wednesday Open Mic" value={name} onChange={e => setName(e.target.value)} style={{ borderColor: errs.name ? "var(--rust)" : "" }} />
+                    {errs.name && <div style={{ fontSize: 11, color: "var(--rust)", marginTop: 4 }}>{errs.name}</div>}
+                </div>
+
+                <div className="fg">
+                    <label className="fl">Venue *</label>
+                    <input className="fi" placeholder="e.g. The Rabbit Hole Bar" value={venue} onChange={e => setVenue(e.target.value)} style={{ borderColor: errs.venue ? "var(--rust)" : "" }} />
+                </div>
+
+                <div className="frow">
+                    <div className="fg">
+                        <label className="fl">Date *</label>
+                        <input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} style={{ borderColor: errs.date ? "var(--rust)" : "" }} />
+                    </div>
+                    <div className="fg">
+                        <label className="fl">Slots</label>
+                        <input className="fi" type="number" placeholder="0" min="0" max="30" value={slots} onChange={e => setSlots(e.target.value)} />
+                    </div>
+                </div>
+
+                <div className="fg">
+                    <label className="fl">Type</label>
+                    <div className="cbg">
+                        {[["openmic", "🎤 Open Mic"], ["jam", "🥁 Jam"], ["gig", "🎸 Gig"]].map(([v, l]) => (
+                            <div key={v} className={`cbl${type === v ? " ck" : ""}`} onClick={() => setType(v)}>{l}</div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="fg">
+                    <label className="fl">Age Policy</label>
+                    <div className="cbg">
+                        <div className={`cbl${allAges ? " ck" : ""}`} onClick={() => setAllAges(true)}>✅ All Ages</div>
+                        <div className={`cbl${!allAges ? " ck" : ""}`} onClick={() => setAllAges(false)}>🔞 18+ Only</div>
+                    </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                    <button className="btn1" onClick={go}>Add Event</button>
+                    <button className="btn2" onClick={onClose}>Cancel</button>
+                </div>
+            </div>
+        </div>
     );
 }
 
 function CreateBandModal({ onClose, onCreate, myProfile }) {
-    const [nm, setNm] = useState(""); const [desc, setDesc] = useState(""); const [loc, setLoc] = useState("Grand Junction, CO"); const [genres, togG] = useToggle([]); const [insts, togI] = useToggle([]); const [errs, setErrs] = useState({});
-    const go = () => { const e = {}; if (!nm.trim()) e.name = "Required"; if (!genres.length) e.g = "Select at least one"; setErrs(e); if (Object.keys(e).length) return; onCreate({ name: nm.trim(), emoji: "🎵", genres, dist: "Your Band", desc: desc.trim() || `${nm} is looking for musicians.`, isMyBand: true, members: [{ name: myProfile?.name || "Me", emoji: myProfile?.emoji || "🎵", role: myProfile?.instrument || "Musician", filled: true }, ...insts.map(i => ({ name: "Open", emoji: EMOJ[i] || "🎵", role: i, filled: false }))] }); onClose(); };
+    const [nm, setNm] = useState("");
+    const [desc, setDesc] = useState("");
+    const [loc, setLoc] = useState("Grand Junction, CO");
+    const [genres, togG] = useToggle([]);
+    const [insts, togI] = useToggle([]);
+    const [errs, setErrs] = useState({});
+
+    const go = () => {
+        const e = {};
+        if (!nm.trim()) e.name = "Required";
+        if (!genres.length) e.g = "Select at least one";
+        setErrs(e);
+        if (Object.keys(e).length) return;
+
+        onCreate({
+            name: nm.trim(),
+            emoji: "🎵",
+            genres,
+            dist: "Your Band",
+            desc: desc.trim() || `${nm} is looking for musicians.`,
+            isMyBand: true,
+            members: [
+                { name: myProfile?.name || "Me", emoji: myProfile?.emoji || "🎵", role: myProfile?.instrument || "Musician", filled: true },
+                ...insts.map(i => ({ name: "Open", emoji: EMOJ[i] || "🎵", role: i, filled: false }))
+            ]
+        });
+
+        onClose();
+    };
+
     return (
-        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
-            <div className="mhnd" /><div className="mtit">Create Band Profile</div>
-            <div className="fg"><label className="fl">Band Name *</label><input className="fi" placeholder="e.g. Patchwork Sound" value={nm} onChange={e => setNm(e.target.value)} style={{ borderColor: errs.name ? "var(--rust)" : "" }} />{errs.name && <div style={{ fontSize: 11, color: "var(--rust)", marginTop: 4 }}>{errs.name}</div>}</div>
-            <div className="fg"><label className="fl">Genres * {errs.g && <span style={{ color: "var(--rust)", textTransform: "none", letterSpacing: 0 }}>— {errs.g}</span>}</label><div className="cbg">{GENRES.map(g => <div key={g} className={`cbl${genres.includes(g) ? " ck" : ""}`} onClick={() => togG(g)}>{g}</div>)}</div></div>
-            <div className="fg"><label className="fl">Open Slots (optional) {errs.i && <span style={{ color: "var(--rust)", textTransform: "none", letterSpacing: 0 }}>— {errs.i}</span>}</label><div className="cbg">{["Guitar", "Bass", "Drums", "Keys", "Vocals", "Violin", "Sax", "Trumpet", "Other"].map(i => <div key={i} className={`cbl${insts.includes(i) ? " ck" : ""}`} onClick={() => togI(i)}>{EMOJ[i]} {i}</div>)}</div></div>
-            <div className="fg"><label className="fl">About</label><textarea className="fta" placeholder="Tell musicians about your style..." value={desc} onChange={e => setDesc(e.target.value)} /></div>
-            <div className="fg"><label className="fl">Location</label><input className="fi" value={loc} onChange={e => setLoc(e.target.value)} /></div>
-            <div style={{ display: "flex", gap: 10, marginTop: 6 }}><button className="btn1" onClick={go}>Create Band Profile</button><button className="btn2" onClick={onClose}>Cancel</button></div>
-        </div></div>
+        <div className="ov" onClick={onClose}>
+            <div className="mod" onClick={e => e.stopPropagation()}>
+                <div className="mhnd" />
+                <div className="mtit">Create Band Profile</div>
+
+                <div className="fg">
+                    <label className="fl">Band Name *</label>
+                    <input className="fi" placeholder="e.g. Patchwork Sound" value={nm} onChange={e => setNm(e.target.value)} style={{ borderColor: errs.name ? "var(--rust)" : "" }} />
+                    {errs.name && <div style={{ fontSize: 11, color: "var(--rust)", marginTop: 4 }}>{errs.name}</div>}
+                </div>
+
+                <div className="fg">
+                    <label className="fl">Genres * {errs.g && <span style={{ color: "var(--rust)", textTransform: "none", letterSpacing: 0 }}>— {errs.g}</span>}</label>
+                    <div className="cbg">
+                        {GENRES.map(g => (
+                            <div key={g} className={`cbl${genres.includes(g) ? " ck" : ""}`} onClick={() => togG(g)}>{g}</div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="fg">
+                    <label className="fl">Open Slots (optional)</label>
+                    <div className="cbg">
+                        {["Guitar", "Bass", "Drums", "Keys", "Vocals", "Violin", "Sax", "Trumpet", "Other"].map(i => (
+                            <div key={i} className={`cbl${insts.includes(i) ? " ck" : ""}`} onClick={() => togI(i)}>{EMOJ[i]} {i}</div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="fg">
+                    <label className="fl">About</label>
+                    <textarea className="fta" placeholder="Tell musicians about your style..." value={desc} onChange={e => setDesc(e.target.value)} />
+                </div>
+
+                <div className="fg">
+                    <label className="fl">Location</label>
+                    <input className="fi" value={loc} onChange={e => setLoc(e.target.value)} />
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                    <button className="btn1" onClick={go}>Create Band Profile</button>
+                    <button className="btn2" onClick={onClose}>Cancel</button>
+                </div>
+            </div>
+        </div>
     );
 }
 
 function MModal({ m, onClose, minor, onMsg }) {
-    const [showRep, setShowRep] = useState(false); const [reported, setReported] = useState(false);
+    const [showRep, setShowRep] = useState(false);
+    const [reported, setReported] = useState(false);
+
     if (!m) return null;
+
     if (showRep) return (
-        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
-            <div className="mhnd" /><div className="mtit">Report or Block</div>
-            {reported ? (<div style={{ textAlign: "center", padding: "20px 0" }}><div style={{ fontSize: 48, marginBottom: 12 }}>✅</div><div style={{ fontFamily: "Playfair Display,serif", fontSize: 18, marginBottom: 8 }}>Report submitted</div><div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{m.name} has been blocked.</div><button className="btn1" style={{ marginTop: 20, width: "100%" }} onClick={onClose}>Done</button></div>)
-                : (<>{[{ i: "🚫", l: "Block this user", s: "They won't be able to message you" }, { i: "⚠️", l: "Inappropriate behavior", s: "Harassment, spam, or misconduct" }, { i: "🔞", l: "Inappropriate contact with minor", s: "Adult contacting someone under 18" }, { i: "🤥", l: "Fake or misleading profile", s: "Impersonation or false info" }, { i: "😰", l: "I feel unsafe", s: "Something doesn't feel right" }].map((r, i) => (<div key={i} className="rop" onClick={() => setReported(true)}><div className="roico">{r.i}</div><div><div className="rola">{r.l}</div><div className="rosu">{r.s}</div></div><div className="inch">›</div></div>))}<button className="btn2" style={{ width: "100%", marginTop: 12, textAlign: "center" }} onClick={() => setShowRep(false)}>Cancel</button></>)}
-        </div></div>
-    );
-    return (
-        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
-            <div className="mhnd" />
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-                <div style={{ width: 64, height: 64, borderRadius: 16, background: m.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>{m.emoji}</div>
-                <div><div style={{ fontFamily: "Playfair Display,serif", fontSize: 22 }}>{m.name}</div><div style={{ fontSize: 12, color: "var(--amber)", fontWeight: 500, textTransform: "uppercase" }}>{m.instrument}</div><div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>📍 {m.dist} · {m.online ? "🟢 Online" : "⚪ Offline"}</div></div>
+        <div className="ov" onClick={onClose}>
+            <div className="mod" onClick={e => e.stopPropagation()}>
+                <div className="mhnd" />
+                <div className="mtit">Report or Block</div>
+
+                {reported ? (
+                    <div style={{ textAlign: "center", padding: "20px 0" }}>
+                        <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                        <div style={{ fontFamily: "Playfair Display,serif", fontSize: 18, marginBottom: 8 }}>Report submitted</div>
+                        <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{m.name} has been blocked.</div>
+                        <button className="btn1" style={{ marginTop: 20, width: "100%" }} onClick={onClose}>Done</button>
+                    </div>
+                ) : (
+                    <>
+                        {[
+                            { i: "🚫", l: "Block this user", s: "They won't be able to message you" },
+                            { i: "⚠️", l: "Inappropriate behavior", s: "Harassment, spam, or misconduct" },
+                            { i: "🔞", l: "Inappropriate contact with minor", s: "Adult contacting someone under 18" },
+                            { i: "🤥", l: "Fake or misleading profile", s: "Impersonation or false info" },
+                            { i: "😰", l: "I feel unsafe", s: "Something doesn't feel right" },
+                        ].map((r, i) => (
+                            <div key={i} className="rop" onClick={() => setReported(true)}>
+                                <div className="roico">{r.i}</div>
+                                <div>
+                                    <div className="rola">{r.l}</div>
+                                    <div className="rosu">{r.s}</div>
+                                </div>
+                                <div className="inch">›</div>
+                            </div>
+                        ))}
+                        <button className="btn2" style={{ width: "100%", marginTop: 12, textAlign: "center" }} onClick={() => setShowRep(false)}>Cancel</button>
+                    </>
+                )}
             </div>
-            {minor && <div className="sban" style={{ margin: "0 0 14px" }}><div className="sico">🛡️</div><div><div className="stit">Safety reminder</div><div className="stxt">Only meet people in public places. Tell a trusted adult who you're meeting.</div></div></div>}
-            <div style={{ marginBottom: 14 }}><div className="fl">Genres</div><div style={{ display: "flex", gap: 6 }}>{m.genres.map(g => <span key={g} className="cg">{g}</span>)}</div></div>
-            <div style={{ marginBottom: 18 }}><div className="fl">Looking For</div><div className="li" style={{ display: "inline-flex" }}>🎯 {m.looking}</div></div>
-            <div style={{ display: "flex", gap: 10, marginBottom: 10 }}><button className="btn1" style={{ flex: 1 }} onClick={() => { onMsg(m); onClose(); }}>💬 Message</button><button className="btn1" style={{ flex: 1, background: "var(--sage)" }} onClick={() => { onMsg(m); onClose(); }}>📅 Schedule Jam</button></div>
-            <div style={{ display: "flex", gap: 10 }}><button className="btnd" style={{ flex: 1 }} onClick={() => setShowRep(true)}>🚩 Report / Block</button><button className="btn2" style={{ flex: 1, textAlign: "center" }} onClick={onClose}>Close</button></div>
-        </div></div>
+        </div>
+    );
+
+    return (
+        <div className="ov" onClick={onClose}>
+            <div className="mod" onClick={e => e.stopPropagation()}>
+                <div className="mhnd" />
+                <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 16, background: m.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>{m.emoji}</div>
+                    <div>
+                        <div style={{ fontFamily: "Playfair Display,serif", fontSize: 22 }}>{m.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--amber)", fontWeight: 500, textTransform: "uppercase" }}>{m.instrument}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>📍 {m.dist} · {m.online ? "🟢 Online" : "⚪ Offline"}</div>
+                    </div>
+                </div>
+
+                {minor && (
+                    <div className="sban" style={{ margin: "0 0 14px" }}>
+                        <div className="sico">🛡️</div>
+                        <div>
+                            <div className="stit">Safety reminder</div>
+                            <div className="stxt">Only meet people in public places. Tell a trusted adult who you're meeting.</div>
+                        </div>
+                    </div>
+                )}
+
+                <div style={{ marginBottom: 14 }}>
+                    <div className="fl">Genres</div>
+                    <div style={{ display: "flex", gap: 6 }}>{m.genres.map(g => <span key={g} className="cg">{g}</span>)}</div>
+                </div>
+
+                <div style={{ marginBottom: 18 }}>
+                    <div className="fl">Looking For</div>
+                    <div className="li" style={{ display: "inline-flex" }}>🎯 {m.looking}</div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                    <button className="btn1" style={{ flex: 1 }} onClick={() => { onMsg(m); onClose(); }}>💬 Message</button>
+                    <button className="btn1" style={{ flex: 1, background: "var(--sage)" }} onClick={() => { onMsg(m); onClose(); }}>📅 Schedule Jam</button>
+                </div>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                    <button className="btnd" style={{ flex: 1 }} onClick={() => setShowRep(true)}>🚩 Report / Block</button>
+                    <button className="btn2" style={{ flex: 1, textAlign: "center" }} onClick={onClose}>Close</button>
+                </div>
+            </div>
+        </div>
     );
 }
 
 function BModal({ b, onClose }) {
     if (!b) return null;
+
     return (
-        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
-            <div className="mhnd" />
-            <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 16 }}><div style={{ width: 56, height: 56, borderRadius: 14, background: "#f0e6d3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{b.emoji}</div><div><div style={{ fontFamily: "Playfair Display,serif", fontSize: 22, marginBottom: 2 }}>{b.name}</div><div style={{ fontSize: 11, color: "var(--amber)", fontWeight: 500, textTransform: "uppercase" }}>{b.genres.join(" · ")}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>📍 {b.dist}</div></div></div>
-            <div style={{ marginBottom: 14 }}><div className="fl">About</div><div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6 }}>{b.desc}</div></div>
-            <div style={{ marginBottom: 16 }}><div className="fl">Roster</div>{b.members.map((m, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--warm)" }}><div style={{ width: 32, height: 32, borderRadius: 8, background: m.filled ? "#f0e6d3" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, opacity: m.filled ? 1 : .4 }}>{m.filled ? m.emoji : "?"}</div><div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 500, color: m.filled ? "var(--ink)" : "var(--muted)" }}>{m.filled ? m.name : "Open slot"}</div><div style={{ fontSize: 11, color: m.filled ? "var(--amber)" : "var(--rust)", fontWeight: 500 }}>{m.role}</div></div>{!m.filled && <span className="stag sopen">OPEN</span>}</div>))}</div>
-            {!b.isMyBand && b.members.some(m => !m.filled) && <div style={{ display: "flex", gap: 10, marginBottom: 10 }}><button className="btn1" style={{ flex: 1 }}>🎵 Apply to Join</button><button className="btn1" style={{ flex: 1, background: "var(--sage)" }}>💬 Message Band</button></div>}
-            {b.isMyBand && <button className="btn1" style={{ width: "100%", marginBottom: 10 }}>⚙️ Manage Band Profile</button>}
-            <button className="btn2" style={{ width: "100%", textAlign: "center" }} onClick={onClose}>Close</button>
-        </div></div>
+        <div className="ov" onClick={onClose}>
+            <div className="mod" onClick={e => e.stopPropagation()}>
+                <div className="mhnd" />
+                <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 16 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: 14, background: "#f0e6d3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{b.emoji}</div>
+                    <div>
+                        <div style={{ fontFamily: "Playfair Display,serif", fontSize: 22, marginBottom: 2 }}>{b.name}</div>
+                        <div style={{ fontSize: 11, color: "var(--amber)", fontWeight: 500, textTransform: "uppercase" }}>{b.genres.join(" · ")}</div>
+                        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>📍 {b.dist}</div>
+                    </div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                    <div className="fl">About</div>
+                    <div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6 }}>{b.desc}</div>
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                    <div className="fl">Roster</div>
+                    {b.members.map((m, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--warm)" }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: m.filled ? "#f0e6d3" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, opacity: m.filled ? 1 : .4 }}>
+                                {m.filled ? m.emoji : "?"}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 13, fontWeight: 500, color: m.filled ? "var(--ink)" : "var(--muted)" }}>{m.filled ? m.name : "Open slot"}</div>
+                                <div style={{ fontSize: 11, color: m.filled ? "var(--amber)" : "var(--rust)", fontWeight: 500 }}>{m.role}</div>
+                            </div>
+                            {!m.filled && <span className="stag sopen">OPEN</span>}
+                        </div>
+                    ))}
+                </div>
+
+                {!b.isMyBand && b.members.some(m => !m.filled) && (
+                    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                        <button className="btn1" style={{ flex: 1 }}>🎵 Apply to Join</button>
+                        <button className="btn1" style={{ flex: 1, background: "var(--sage)" }}>💬 Message Band</button>
+                    </div>
+                )}
+
+                {b.isMyBand && <button className="btn1" style={{ width: "100%", marginBottom: 10 }}>⚙️ Manage Band Profile</button>}
+
+                <button className="btn2" style={{ width: "100%", textAlign: "center" }} onClick={onClose}>Close</button>
+            </div>
+        </div>
     );
 }
 
@@ -959,17 +1468,20 @@ export default function App({ user, profile }) {
     const [showCB, setShowCB] = useState(false);
     const [toast, setToast] = useState(null);
     const [currentProfile, setCurrentProfile] = useState(profile);
+
     const [editName, setEditName] = useState(profile?.name || "");
     const [editInstrument, setEditInstrument] = useState(profile?.instrument || "");
     const [editGenres, setEditGenres] = useState(profile?.genres || []);
     const [editLooking, setEditLooking] = useState(profile?.looking || []);
     const [editAbout, setEditAbout] = useState(profile?.about || "");
     const [savingProfile, setSavingProfile] = useState(false);
+
     const [applyingGig, setApplyingGig] = useState(null);
-
     const [realMusicians, setRealMusicians] = useState([]);
-
     const [gigOpenings, setGigOpenings] = useState([]);
+
+    // ✅ Single source of truth for applied gigs (drives button state)
+    const [appliedGigIds, setAppliedGigIds] = useState(new Set());
 
     useEffect(() => {
         const fetchGigs = async () => {
@@ -978,10 +1490,40 @@ export default function App({ user, profile }) {
                 const { db } = await import("../../lib/firebase");
                 const snap = await getDocs(query(collection(db, "gigOpenings"), where("status", "==", "open")));
                 setGigOpenings(snap.docs.map(d => ({ ...d.data(), id: d.id })));
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         };
         fetchGigs();
     }, []);
+
+    // ✅ Load which gigs this user already applied to (no collectionGroup)
+    useEffect(() => {
+        if (!user?.uid) return;
+
+        const fetchApplied = async () => {
+            try {
+                const { collection, getDocs } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+
+                const gigsSnap = await getDocs(collection(db, "gigOpenings"));
+                const applied = new Set();
+
+                await Promise.all(
+                    gigsSnap.docs.map(async gigDoc => {
+                        const appsSnap = await getDocs(collection(db, "gigOpenings", gigDoc.id, "applications"));
+                        if (appsSnap.docs.some(d => d.id === user.uid)) applied.add(gigDoc.id);
+                    })
+                );
+
+                setAppliedGigIds(applied);
+            } catch (e) {
+                console.error(e);
+            }
+        };
+
+        fetchApplied();
+    }, [user?.uid]);
 
     useEffect(() => {
         const fetchMusicians = async () => {
@@ -1043,50 +1585,71 @@ export default function App({ user, profile }) {
     useEffect(() => {
         if (!user?.uid) return;
         let unsub = () => { };
+
         const setup = async () => {
             try {
                 const { collection, query, where, onSnapshot, orderBy, getDocs } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
                 const q = query(collection(db, "conversations"), where(`participants.${user.uid}`, "==", true));
+
                 unsub = onSnapshot(q, async snap => {
-                    const newConvs = await Promise.all(snap.docs.map(async convDoc => {
-                        const data = convDoc.data();
-                        const partnerId = Object.keys(data.participants).find(id => id !== user.uid);
-                        const msgsSnap = await getDocs(query(collection(db, "conversations", convDoc.id, "messages"), orderBy("createdAt", "asc")));
-                        const messages = msgsSnap.docs.map(m => ({
-                            id: m.id,
-                            from: m.data().from === user.uid ? "me" : "them",
-                            text: m.data().text,
-                            time: m.data().time,
-                            type: m.data().type || "text",
-                            proposed: m.data().proposed,
-                        }));
-                        const musician = realMusicians.find(m => m.id === partnerId) || {
-                            id: partnerId,
-                            name: data.participantNames?.[partnerId] || "Musician",
-                            emoji: data.participantEmojis?.[partnerId] || "🎵",
-                            bg: "#f0e6d3",
-                            instrument: "",
-                            online: false,
-                        };
-                        return { id: convDoc.id, mid: partnerId, musician, unread: false, messages };
-                    }));
+                    const newConvs = await Promise.all(
+                        snap.docs.map(async convDoc => {
+                            const data = convDoc.data();
+                            const partnerId = Object.keys(data.participants).find(id => id !== user.uid);
+
+                            const msgsSnap = await getDocs(
+                                query(collection(db, "conversations", convDoc.id, "messages"), orderBy("createdAt", "asc"))
+                            );
+
+                            const messages = msgsSnap.docs.map(m => ({
+                                id: m.id,
+                                from: m.data().from === user.uid ? "me" : "them",
+                                text: m.data().text,
+                                time: m.data().time,
+                                type: m.data().type || "text",
+                                proposed: m.data().proposed,
+                            }));
+
+                            const musician = realMusicians.find(m => m.id === partnerId) || {
+                                id: partnerId,
+                                name: data.participantNames?.[partnerId] || "Musician",
+                                emoji: data.participantEmojis?.[partnerId] || "🎵",
+                                bg: "#f0e6d3",
+                                instrument: "",
+                                online: false,
+                            };
+
+                            return { id: convDoc.id, mid: partnerId, musician, unread: false, messages };
+                        })
+                    );
+
                     setConvs(newConvs);
                 });
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         };
+
         setup();
         return () => unsub();
     }, [user?.uid, realMusicians.length]);
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
-    const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
+
+    const openChat = id => {
+        setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c));
+        setConvId(id);
+        setTab("messages");
+    };
+
     const getConvId = (uid1, uid2) => [uid1, uid2].sort().join("_");
 
     const msgMusician = async m => {
         const convId = getConvId(user.uid, m.id);
         const ex = convs.find(c => c.id === convId);
         if (ex) { openChat(convId); return; }
+
         try {
             const { doc, setDoc } = await import("firebase/firestore");
             const { db } = await import("../../lib/firebase");
@@ -1097,7 +1660,10 @@ export default function App({ user, profile }) {
                 lastMessage: "",
                 updatedAt: new Date().toISOString(),
             }, { merge: true });
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
+
         const nc = { id: convId, mid: m.id, musician: m, unread: false, messages: [] };
         setConvs(p => [...p, nc]);
         setConvId(convId);
@@ -1107,9 +1673,11 @@ export default function App({ user, profile }) {
     const sendMsg = async (cid, txt) => {
         const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", text: txt, time, type: "text" }] } : c));
+
         try {
             const { collection, addDoc, doc, updateDoc } = await import("firebase/firestore");
             const { db } = await import("../../lib/firebase");
+
             await addDoc(collection(db, "conversations", cid, "messages"), {
                 from: user.uid,
                 text: txt,
@@ -1117,14 +1685,19 @@ export default function App({ user, profile }) {
                 type: "text",
                 createdAt: new Date().toISOString(),
             });
+
             await updateDoc(doc(db, "conversations", cid), {
                 lastMessage: txt,
                 updatedAt: new Date().toISOString(),
             });
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
     };
 
-    const sendJam = (cid, proposed) => setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", type: "jam_request", proposed, time: "Just now", status: "pending" }] } : c));
+    const sendJam = (cid, proposed) =>
+        setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", type: "jam_request", proposed, time: "Just now", status: "pending" }] } : c));
+
     const saveProfile = async () => {
         setSavingProfile(true);
         try {
@@ -1136,7 +1709,9 @@ export default function App({ user, profile }) {
             setCurrentProfile(updated);
             setShowEdit(false);
             doToast("Profile saved!");
-        } catch (e) { alert(e.message); }
+        } catch (e) {
+            alert(e.message);
+        }
         setSavingProfile(false);
     };
 
@@ -1144,83 +1719,228 @@ export default function App({ user, profile }) {
     const activeConv = convs.find(c => c.id === convId);
     const activeM = activeConv ? activeConv.musician : null;
 
-    if (!ageSet) return (<><style>{S}</style><AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} /></>);
+    if (!ageSet) {
+        return (
+            <>
+                <style>{S}</style>
+                <AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} />
+            </>
+        );
+    }
 
     return (
         <>
             <style>{S}</style>
+
             <div className="app">
                 {toast && <div className="toast">✓ {toast}</div>}
-                {tab === "messages" && activeConv && activeM && <Chat conv={activeConv} musician={activeM} onBack={() => setConvId(null)} onSend={sendMsg} onJamReq={sendJam} />}
+
+                {tab === "messages" && activeConv && activeM && (
+                    <Chat
+                        conv={activeConv}
+                        musician={activeM}
+                        onBack={() => setConvId(null)}
+                        onSend={sendMsg}
+                        onJamReq={sendJam}
+                    />
+                )}
+
                 <div style={{ display: tab === "messages" && activeConv ? "none" : "block" }}>
                     <div className="hdr">
-                        <div><div className="logo">Music<span>Meetup</span></div><div className="hsub">Grand Junction, CO</div></div>
+                        <div>
+                            <div className="logo">Music<span>Meetup</span></div>
+                            <div className="hsub">Grand Junction, CO</div>
+                        </div>
                         <div className="avbtn" onClick={() => setTab("profile")}>{currentProfile?.emoji || "🎵"}</div>
                     </div>
-                    {tab === "home" && <Home musicians={realMusicians} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
+
+                    {tab === "home" && (
+                        <Home
+                            musicians={realMusicians}
+                            events={events}
+                            bands={bands}
+                            shows={shows}
+                            onM={setSelM}
+                            onB={setSelB}
+                            onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))}
+                            filter={filter}
+                            setFilter={setFilter}
+                            minor={minor}
+                            goLive={() => setTab("live")}
+                        />
+                    )}
+
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
-                    {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} gigOpenings={gigOpenings} onApply={setApplyingGig} userId={user.uid} />}
-                    {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
+
+                    {tab === "bands" && (
+                        <Bands
+                            bands={bands}
+                            onB={setSelB}
+                            onCreate={() => setShowCB(true)}
+                            gigOpenings={gigOpenings}
+                            onApply={setApplyingGig}
+                            userId={user.uid}
+                            appliedGigIds={appliedGigIds}
+                        />
+                    )}
+
+                    {tab === "events" && (
+                        <Events
+                            events={events}
+                            onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))}
+                            minor={minor}
+                            onAdd={() => setShowAddEv(true)}
+                        />
+                    )}
+
                     {tab === "messages" && !activeConv && <Inbox convs={convs} onOpen={openChat} />}
                     {tab === "profile" && <Profile onEdit={() => setShowEdit(true)} profile={currentProfile} />}
+
                     <nav className="bnav">
-                        {[{ id: "home", icon: <IH />, label: "Home" }, { id: "live", icon: <ILM />, label: "Live" }, { id: "bands", icon: <IB />, label: "Bands" }, { id: "events", icon: <IC />, label: "Events" }, { id: "messages", icon: <IM />, label: "Messages", badge: uc }].map(n => (
-                            <button key={n.id} className={`nbtn${tab === n.id ? " on" : ""}`} onClick={() => { setTab(n.id); if (n.id !== "messages") setConvId(null); }}>
+                        {[
+                            { id: "home", icon: <IH />, label: "Home" },
+                            { id: "live", icon: <ILM />, label: "Live" },
+                            { id: "bands", icon: <IB />, label: "Bands" },
+                            { id: "events", icon: <IC />, label: "Events" },
+                            { id: "messages", icon: <IM />, label: "Messages", badge: uc },
+                        ].map(n => (
+                            <button
+                                key={n.id}
+                                className={`nbtn${tab === n.id ? " on" : ""}`}
+                                onClick={() => { setTab(n.id); if (n.id !== "messages") setConvId(null); }}
+                            >
                                 {n.icon}{n.label}
                                 {n.badge > 0 && <div className="nbadge">{n.badge}</div>}
                             </button>
                         ))}
                     </nav>
                 </div>
+
                 <MModal m={selM} onClose={() => setSelM(null)} minor={minor} onMsg={msgMusician} />
                 <BModal b={selB} onClose={() => setSelB(null)} />
-                {showAddEv && <AddEventModal onClose={() => setShowAddEv(false)} onAdd={async d => {
-                    try {
-                        const { collection, addDoc } = await import("firebase/firestore");
-                        const { db } = await import("../../lib/firebase");
-                        const ref = await addDoc(collection(db, "events"), { ...d, createdAt: new Date().toISOString(), addedBy: user.uid });
-                        setEvents(p => [{ ...d, id: ref.id }, ...p]);
-                        doToast("Event added for everyone!");
-                    } catch (e) { alert(e.message); }
-                }} />}
-                {showCB && <CreateBandModal onClose={() => setShowCB(false)} myProfile={currentProfile} onCreate={async d => {
-                    try {
-                        const { collection, addDoc } = await import("firebase/firestore");
-                        const { db } = await import("../../lib/firebase");
-                        const ref = await addDoc(collection(db, "bands"), { ...d, createdAt: new Date().toISOString(), createdBy: user.uid });
-                        setBands(p => [...p, { ...d, id: ref.id }]);
-                        doToast("Band profile created!");
-                        setTab("bands");
-                    } catch (e) { alert(e.message); }
-                }} />}
-                {applyingGig && (
-                    <div className="ov" onClick={() => setApplyingGig(null)}><div className="mod" onClick={e => e.stopPropagation()}>
-                        <div className="mhnd" />
-                        <div className="mtit">Apply for Gig</div>
-                        <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
-                            <div style={{ fontFamily: "Playfair Display,serif", fontSize: 16, color: "var(--parchment)", marginBottom: 2 }}>{applyingGig.name}</div>
-                            <div style={{ fontSize: 12, color: "var(--al)" }}>📍 {applyingGig.venueName} · 📅 {applyingGig.month} {applyingGig.day}</div>
-                            {applyingGig.pay && <div style={{ fontSize: 12, color: "var(--sage)", marginTop: 4 }}>💰 {applyingGig.pay}</div>}
-                        </div>
-                        <GigApplyForm
-                            gig={applyingGig}
-                            myBands={bands.filter(b => b.isMyBand)}
-                            userProfile={currentProfile}
-                            onClose={() => setApplyingGig(null)}
-                            onSuccess={() => { setApplyingGig(null); doToast("Application submitted!"); }}
-                        />
-                    </div></div>
+
+                {showAddEv && (
+                    <AddEventModal
+                        onClose={() => setShowAddEv(false)}
+                        onAdd={async d => {
+                            try {
+                                const { collection, addDoc } = await import("firebase/firestore");
+                                const { db } = await import("../../lib/firebase");
+                                const ref = await addDoc(collection(db, "events"), { ...d, createdAt: new Date().toISOString(), addedBy: user.uid });
+                                setEvents(p => [{ ...d, id: ref.id }, ...p]);
+                                doToast("Event added for everyone!");
+                            } catch (e) {
+                                alert(e.message);
+                            }
+                        }}
+                    />
                 )}
+
+                {showCB && (
+                    <CreateBandModal
+                        onClose={() => setShowCB(false)}
+                        myProfile={currentProfile}
+                        onCreate={async d => {
+                            try {
+                                const { collection, addDoc } = await import("firebase/firestore");
+                                const { db } = await import("../../lib/firebase");
+                                const ref = await addDoc(collection(db, "bands"), { ...d, createdAt: new Date().toISOString(), createdBy: user.uid });
+                                setBands(p => [...p, { ...d, id: ref.id }]);
+                                doToast("Band profile created!");
+                                setTab("bands");
+                            } catch (e) {
+                                alert(e.message);
+                            }
+                        }}
+                    />
+                )}
+
+                {applyingGig && (
+                    <div className="ov" onClick={() => setApplyingGig(null)}>
+                        <div className="mod" onClick={e => e.stopPropagation()}>
+                            <div className="mhnd" />
+                            <div className="mtit">Apply for Gig</div>
+
+                            <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+                                <div style={{ fontFamily: "Playfair Display,serif", fontSize: 16, color: "var(--parchment)", marginBottom: 2 }}>{applyingGig.name}</div>
+                                <div style={{ fontSize: 12, color: "var(--al)" }}>📍 {applyingGig.venueName} · 📅 {applyingGig.month} {applyingGig.day}</div>
+                                {applyingGig.pay && <div style={{ fontSize: 12, color: "var(--sage)", marginTop: 4 }}>💰 {applyingGig.pay}</div>}
+                            </div>
+
+                            <GigApplyForm
+                                gig={applyingGig}
+                                myBands={bands.filter(b => b.isMyBand)}
+                                userProfile={currentProfile}
+                                onClose={() => setApplyingGig(null)}
+                                onSuccess={() => {
+                                    // ✅ immediate button flip
+                                    setAppliedGigIds(prev => new Set([...prev, applyingGig.id]));
+                                    setApplyingGig(null);
+                                    doToast("Application submitted!");
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
+
                 {showEdit && (
-                    <div className="ov" onClick={() => setShowEdit(false)}><div className="mod" onClick={e => e.stopPropagation()}>
-                        <div className="mhnd" /><div className="mtit">Edit Your Profile</div>
-                        <div className="fg"><label className="fl">Display Name</label><input className="fi" value={editName} onChange={e => setEditName(e.target.value)} /></div>
-                        <div className="fg"><label className="fl">Primary Instrument</label><select className="fsl" value={editInstrument} onChange={e => setEditInstrument(e.target.value)}>{INSTS.map(i => <option key={i}>{i}</option>)}</select></div>
-                        <div className="fg"><label className="fl">Genres</label><div className="cbg">{GENRES.map(g => <div key={g} className={`cbl${editGenres.includes(g) ? " ck" : ""}`} onClick={() => setEditGenres(p => p.includes(g) ? p.filter(x => x !== g) : [...p, g])}>{g}</div>)}</div></div>
-                        <div className="fg"><label className="fl">Looking For</label><div className="cbg">{LOOK.map(l => <div key={l} className={`cbl${editLooking.includes(l) ? " ck" : ""}`} onClick={() => setEditLooking(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l])}>{l}</div>)}</div></div>
-                        <div className="fg"><label className="fl">About You</label><textarea className="fta" value={editAbout} onChange={e => setEditAbout(e.target.value)} /></div>
-                        <button className="btn1" style={{ width: "100%", padding: 14, marginTop: 6 }} onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "Saving..." : "Save Profile"}</button>
-                    </div></div>
+                    <div className="ov" onClick={() => setShowEdit(false)}>
+                        <div className="mod" onClick={e => e.stopPropagation()}>
+                            <div className="mhnd" />
+                            <div className="mtit">Edit Your Profile</div>
+
+                            <div className="fg">
+                                <label className="fl">Display Name</label>
+                                <input className="fi" value={editName} onChange={e => setEditName(e.target.value)} />
+                            </div>
+
+                            <div className="fg">
+                                <label className="fl">Primary Instrument</label>
+                                <select className="fsl" value={editInstrument} onChange={e => setEditInstrument(e.target.value)}>
+                                    {INSTS.map(i => <option key={i}>{i}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="fg">
+                                <label className="fl">Genres</label>
+                                <div className="cbg">
+                                    {GENRES.map(g => (
+                                        <div
+                                            key={g}
+                                            className={`cbl${editGenres.includes(g) ? " ck" : ""}`}
+                                            onClick={() => setEditGenres(p => p.includes(g) ? p.filter(x => x !== g) : [...p, g])}
+                                        >
+                                            {g}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="fg">
+                                <label className="fl">Looking For</label>
+                                <div className="cbg">
+                                    {LOOK.map(l => (
+                                        <div
+                                            key={l}
+                                            className={`cbl${editLooking.includes(l) ? " ck" : ""}`}
+                                            onClick={() => setEditLooking(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l])}
+                                        >
+                                            {l}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="fg">
+                                <label className="fl">About You</label>
+                                <textarea className="fta" value={editAbout} onChange={e => setEditAbout(e.target.value)} />
+                            </div>
+
+                            <button className="btn1" style={{ width: "100%", padding: 14, marginTop: 6 }} onClick={saveProfile} disabled={savingProfile}>
+                                {savingProfile ? "Saving..." : "Save Profile"}
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
         </>
