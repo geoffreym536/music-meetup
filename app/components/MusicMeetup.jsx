@@ -653,7 +653,7 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
             )}
             <div className="sh"><div className="st">Musicians Nearby</div><button className="sl">See all</button></div>
             <div className="chips">{["All", "Guitar", "Drums", "Keys", "Vocals", "Bass"].map(f => <div key={f} className={`chip${filter === f ? " on" : ""}`} onClick={() => setFilter(f)}>{f}</div>)}</div>
-            <div className="cscroll">{musicians.map(m => <MCard key={m.id} m={m} onClick={onM} minor={minor} />)}</div>
+            <div className="cscroll">{musicians.filter(m => filter === "All" || m.instrument === filter).map(m => <MCard key={m.id} m={m} onClick={onM} minor={minor} />)}</div>
             <div className="sh" style={{ marginTop: 8 }}><div className="st">Bands Seeking Members</div></div>
             {bands.filter(b => b.members.some(m => !m.filled)).slice(0, 2).map(b => <BCard key={b.id} b={b} onClick={onB} />)}
             <div className="sh"><div className="st">Upcoming Events</div></div>
