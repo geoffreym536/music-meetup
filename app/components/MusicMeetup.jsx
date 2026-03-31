@@ -724,7 +724,8 @@ function MyApplications({ userId }) {
                 const myApps = [];
                 snap.docs.forEach(d => {
                     const data = d.data();
-                    const app = data.applications?.find(a => a.applicantId === userId);
+                    const userApps = data.applications?.filter(a => a.applicantId === userId) || [];
+                    const app = userApps[userApps.length - 1]; // take most recent only
                     if (app) myApps.push({ ...app, gigId: d.id, gigName: data.name, venueName: data.venueName, month: data.month, day: data.day, pay: data.pay });
                 });
                 setApps(myApps);
