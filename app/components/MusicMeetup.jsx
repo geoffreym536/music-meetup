@@ -875,15 +875,14 @@ export default function App({user, profile}){
         fetchBands();
     }, []);
 
-    // Load messages from Firestore once on mount
+    // Load messages from Firestore once on mount (independent of musicians data)
     useEffect(() => {
         const loadMessages = async () => {
             try {
-                const { collection, query, where, getDocs, orderBy } = await import("firebase/firestore");
+                const { collection, query, orderBy, getDocs } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
                 
                 const msgMap = {};
-                const msgTimestamps = {};
                 
                 // Load ALL messages (sent and received) sorted by timestamp
                 const allMsgsQuery = query(
@@ -896,13 +895,17 @@ export default function App({user, profile}){
                     const msg = doc.data();
                     const isSent = msg.senderId === user.uid;
                     const partnerId = isSent ? msg.recipientId : msg.senderId;
+                    const senderName = isSent && currentProfile?.name ? currentProfile.name : msg.senderName;
                     
                     if (!msgMap[partnerId]) {
-                        msgMap[partnerId] = [];
-                        msgTimestamps[partnerId] = msg.timestamp;
+                        msgMap[partnerId] = {
+                            messages: [],
+                            senderName: senderName,
+                            lastTimestamp: msg.timestamp
+                        };
                     }
                     
-                    msgMap[partnerId].push({
+                    msgMap[partnerId].messages.push({
                         id: doc.id,
                         from: isSent ? "me" : "them",
                         text: msg.text,
@@ -913,15 +916,22 @@ export default function App({user, profile}){
                     });
                 });
                 
-                // Create conversations with musician data
+                // Create conversations - will be enhanced with musician data as it becomes available
                 const newConvs = Object.keys(msgMap).map(partnerId => {
-                    const musician = realMusicians.find(m => m.id === partnerId);
+                    const musicianFromList = realMusicians.find(m => m.id === partnerId);
+                    const fallbackName = msgMap[partnerId].senderName || "Unknown Musician";
+                    
                     return {
                         id: partnerId,
                         mid: partnerId,
-                        musician: musician || { id: partnerId, name: msg.senderName || "Unknown Musician", emoji: "🎵", bg: "#f0e6d3" },
+                        musician: musicianFromList || { 
+                            id: partnerId, 
+                            name: fallbackName, 
+                            emoji: "🎵", 
+                            bg: "#f0e6d3" 
+                        },
                         unread: false,
-                        messages: msgMap[partnerId]
+                        messages: msgMap[partnerId].messages
                     };
                 });
                 
@@ -931,15 +941,17 @@ export default function App({user, profile}){
             }
         };
         
-        // Only load when we have user data AND realMusicians loaded
-        if (user?.uid && realMusicians.length > 0) {
+        // Load messages as soon as we have user data (don't wait for musicians)
+        if (user?.uid) {
             loadMessages();
         }
-    }, [user.uid, realMusicians]);
+    }, [user.uid]);
 
     // Set up real-time listener for new incoming messages
     useEffect(() => {
         if (!user?.uid) return;
+        
+        let unsubscribe = () => {};
         
         try {
             const setupListener = async () => {
@@ -952,7 +964,7 @@ export default function App({user, profile}){
                     orderBy("timestamp", "desc")
                 );
                 
-                const unsubscribe = onSnapshot(q, (snap) => {
+                unsubscribe = onSnapshot(q, (snap) => {
                     snap.forEach(doc => {
                         const msg = doc.data();
                         setConvs(p => {
@@ -1000,13 +1012,14 @@ export default function App({user, profile}){
             };
             
             setupListener().then(unsub => {
-                // Store cleanup function if needed
-                return () => unsub?.();
+                unsubscribe = unsub;
             });
         } catch(e) {
             console.error("Error setting up message listener:", e);
         }
-    }, [user.uid, realMusicians]);
+        
+        return () => unsubscribe?.();
+    }, [user.uid]);
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
