@@ -711,15 +711,72 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
     );
 }
 
-function Bands({ bands, onB, onCreate, gigOpenings, onApply }) {
+function MyApplications({ userId }) {
+    const [apps, setApps] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetch = async () => {
+            try {
+                const { collection, getDocs } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const snap = await getDocs(collection(db, "gigOpenings"));
+                const myApps = [];
+                snap.docs.forEach(d => {
+                    const data = d.data();
+                    const app = data.applications?.find(a => a.applicantId === userId);
+                    if (app) myApps.push({ ...app, gigId: d.id, gigName: data.name, venueName: data.venueName, month: data.month, day: data.day, pay: data.pay });
+                });
+                setApps(myApps);
+            } catch (e) { console.error(e); }
+            setLoading(false);
+        };
+        fetch();
+    }, [userId]);
+
+    if (loading) return <div className="es"><div className="ed">Loading...</div></div>;
+
+    return (
+        <div>
+            {apps.length === 0 ? (
+                <div className="es"><div className="ei">📬</div><div className="et">No applications yet</div><div className="ed">Apply for gig openings in the Gig Openings tab.</div></div>
+            ) : apps.map((app, i) => (
+                <div key={i} style={{ margin: "0 20px 12px", background: "#fff", borderRadius: 14, border: "2px solid var(--border)", overflow: "hidden" }}>
+                    <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", padding: "12px 16px" }}>
+                        <div style={{ fontFamily: "Playfair Display,serif", fontSize: 16, color: "var(--parchment)", marginBottom: 2 }}>{app.gigName}</div>
+                        <div style={{ fontSize: 12, color: "var(--al)" }}>📍 {app.venueName} · 📅 {app.month} {app.day}</div>
+                    </div>
+                    <div style={{ padding: "12px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: app.message ? 10 : 0 }}>
+                            <div style={{ fontSize: 12, color: "var(--muted)" }}>Applied as <strong>{app.bandName}</strong></div>
+                            <span style={{
+                                fontSize: 11, padding: "3px 12px", borderRadius: 20, fontWeight: 600,
+                                background: app.status === "accepted" ? "#e8f5e9" : app.status === "declined" ? "#fce4ec" : "#fef3e2",
+                                color: app.status === "accepted" ? "var(--sage)" : app.status === "declined" ? "var(--rust)" : "var(--amber)",
+                                border: `1px solid ${app.status === "accepted" ? "#a5d6a7" : app.status === "declined" ? "#f48fb1" : "#f5dba0"}`
+                            }}>
+                                {app.status === "accepted" ? "✓ Accepted" : app.status === "declined" ? "✗ Declined" : "⏳ Pending"}
+                            </span>
+                        </div>
+                        {app.message && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, padding: "8px 10px", background: "var(--warm)", borderRadius: 8, lineHeight: 1.5 }}>"{app.message}"</div>}
+                        {app.pay && <div style={{ fontSize: 12, color: "var(--sage)", marginTop: 8 }}>💰 {app.pay}</div>}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId }) {
     const [tab, setTab] = useState("discover");
     const shown = tab === "mybands" ? bands.filter(b => b.isMyBand) : tab === "seeking" ? bands.filter(b => b.members.some(m => !m.filled)) : bands;
     return (
         <div className="pg">
             <div className="hero" style={{ padding: "20px 20px 16px" }}><div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Bands & <em>Ensembles</em></div></div>
-            <div className="trow">{[["discover", "Discover"], ["seeking", "Seeking"], ["gigs", "Gig Openings"], ["mybands", "My Bands"]].map(([id, l]) => <div key={id} className={`ti${tab === id ? " on" : ""}`} onClick={() => setTab(id)}>{l}</div>)}</div>
+            <div className="trow">{[["discover", "Discover"], ["seeking", "Seeking"], ["gigs", "Gig Openings"], ["mybands", "My Bands"], ["applied", "My Applications"]].map(([id, l]) => <div key={id} className={`ti${tab === id ? " on" : ""}`} onClick={() => setTab(id)}>{l}</div>)}</div>
             <div style={{ height: 12 }} />
             {tab !== "gigs" && shown.map(b => <BCard key={b.id} b={b} onClick={onB} />)}
+            {tab === "applied" && <MyApplications userId={currentUserId} />}
             {tab !== "gigs" && <div style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }} onClick={onCreate}>
                 <div style={{ fontSize: 28, marginBottom: 6 }}>🎵</div>
                 <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Create a Band Profile</div>
@@ -749,6 +806,7 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply }) {
                     ))}
                 </div>
             )}
+            {tab === "applied" && <MyApplications userId={userId} />}
         </div>
     );
 }
@@ -1099,7 +1157,7 @@ export default function App({ user, profile }) {
                     </div>
                     {tab === "home" && <Home musicians={realMusicians} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
-                    {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} gigOpenings={gigOpenings} onApply={setApplyingGig} />}
+                    {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} gigOpenings={gigOpenings} onApply={setApplyingGig} userId={user.uid} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
                     {tab === "messages" && !activeConv && <Inbox convs={convs} onOpen={openChat} />}
                     {tab === "profile" && <Profile onEdit={() => setShowEdit(true)} profile={currentProfile} />}
