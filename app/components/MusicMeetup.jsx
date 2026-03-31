@@ -711,6 +711,7 @@ function Profile({ onEdit }) {
             <div style={{ padding: "16px 20px 8px", display: "flex", flexDirection: "column", gap: 10 }}>
                 <button className="btn1" style={{ width: "100%", padding: 14, fontSize: 15 }} onClick={onEdit}>✏️ Edit Profile</button>
                 <button className="btn2" style={{ width: "100%", padding: 12, textAlign: "center", fontSize: 14 }}>🛡️ Privacy & Safety Settings</button>
+                <button className="btn2" style={{width:"100%",padding:12,textAlign:"center",fontSize:14,color:"var(--rust)"}} onClick={()=>import("../../lib/firebase").then(m=>import("firebase/auth").then(a=>a.signOut(m.auth)))}>🚪 Sign Out</button>
             </div>
         </div>
     );
