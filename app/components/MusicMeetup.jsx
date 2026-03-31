@@ -599,19 +599,17 @@ function Inbox({ convs, onOpen }) {
             <div className="hero" style={{ padding: "20px 20px 16px" }}><div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Messages {uc > 0 && <em style={{ fontSize: 16 }}>· {uc} new</em>}</div></div>
             <div className="ilist">
                 {convs.map(c => {
-                    const m = c.musician;
-                    if (!m) return null;
-                    const last = c.messages[c.messages.length - 1];
+                    const m = getM(c.mid); const last = c.messages[c.messages.length - 1];
                     const prev = last.type === "jam_request" ? "📅 Jam request" : (last.from === "me" ? `You: ${last.text}` : last.text);
                     return (
                         <div key={c.id} className={`iit${c.unread ? " unr" : ""}`} onClick={() => onOpen(c.id)}>
-                            <div className="iav" style={{ background: m.bg||"#f0e6d3" }}>{m.emoji}{m.online && <div className="ionl" />}</div>
+                            <div className="iav" style={{ background: m.bg }}>{m.emoji}{m.online && <div className="ionl" />}</div>
                             <div className="iinf"><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div className="inam">{m.name}</div><span style={{ fontSize: 10, color: "var(--amber)", fontWeight: 500 }}>{m.instrument}</span></div><div className="ipre">{prev}</div></div>
                             <div className="imet"><div className="itim">{last.time}</div>{c.unread && <div className="iudot" />}</div>
                         </div>
                     );
                 })}
-                {convs.length === 0 && <div className="es"><div className="ei">💬</div><div className="et">No messages yet</div><div className="ed">Tap a musician's profile and hit Message to start a conversation.</div></div>}
+                {convs.length === 0 && <div className="es"><div className="ei">💬</div><div className="et">No messages yet</div><div className="ed">Tap Message on any musician to start a conversation.</div></div>}
             </div>
         </div>
     );
@@ -697,28 +695,28 @@ function Events({ events, onJoin, minor, onAdd }) {
     );
 }
 
-function Profile({onEdit, profile}){
-  return(
-    <div className="pg">
-      <div className="phero">
-        <span className="pem">{profile.emoji || "🎵"}</span>
-        <div className="pnam">{profile.name}</div>
-        <div className="ptag">{profile.instrument} · {profile.location}</div>
-        <div className="pbdg">
-          {profile.genres.map(g=><span key={g} className="bdg bda">{g}</span>)}
-          {profile.looking.map(l=><span key={l} className="bdg bds">{l}</span>)}
+function Profile({ onEdit, profile }) {
+    return (
+        <div className="pg">
+            <div className="phero">
+                <span className="pem">{profile.emoji || "🎵"}</span>
+                <div className="pnam">{profile.name}</div>
+                <div className="ptag">{profile.instrument} · {profile.location}</div>
+                <div className="pbdg">
+                    {profile.genres.map(g => <span key={g} className="bdg bda">{g}</span>)}
+                    {profile.looking.map(l => <span key={l} className="bdg bds">{l}</span>)}
+                </div>
+            </div>
+            <div className="psec"><div className="pstit">Looking For</div><div className="plook">{profile.looking.map(l => <div key={l} className="li">🎯 {l}</div>)}</div></div>
+            <div className="psec"><div className="pstit">Availability</div><div className="agr">{DAYS.map(d => <div key={d} className={`ad ${profile.availability.includes(d) ? "av" : "bz"}`}><span className="bp">{d}</span><span className="bs">{profile.availability.includes(d) ? "Free" : "Busy"}</span></div>)}</div></div>
+            <div className="psec"><div className="pstit">About</div><div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6 }}>{profile.about || "No bio yet."}</div></div>
+            <div style={{ padding: "16px 20px 8px", display: "flex", flexDirection: "column", gap: 10 }}>
+                <button className="btn1" style={{ width: "100%", padding: 14, fontSize: 15 }} onClick={onEdit}>✏️ Edit Profile</button>
+                <button className="btn2" style={{ width: "100%", padding: 12, textAlign: "center", fontSize: 14 }}>🛡️ Privacy & Safety Settings</button>
+                <button className="btn2" style={{ width: "100%", padding: 12, textAlign: "center", fontSize: 14, color: "var(--rust)" }} onClick={() => import("../../lib/firebase").then(m => import("firebase/auth").then(a => a.signOut(m.auth)))}>🚪 Sign Out</button>
+            </div>
         </div>
-      </div>
-      <div className="psec"><div className="pstit">Looking For</div><div className="plook">{profile.looking.map(l=><div key={l} className="li">🎯 {l}</div>)}</div></div>
-      <div className="psec"><div className="pstit">Availability</div><div className="agr">{DAYS.map(d=><div key={d} className={`ad ${profile.availability.includes(d)?"av":"bz"}`}><span className="bp">{d}</span><span className="bs">{profile.availability.includes(d)?"Free":"Busy"}</span></div>)}</div></div>
-      <div className="psec"><div className="pstit">About</div><div style={{fontSize:13,color:"var(--ink)",lineHeight:1.6}}>{profile.about||"No bio yet."}</div></div>
-      <div style={{padding:"16px 20px 8px",display:"flex",flexDirection:"column",gap:10}}>
-        <button className="btn1" style={{width:"100%",padding:14,fontSize:15}} onClick={onEdit}>✏️ Edit Profile</button>
-        <button className="btn2" style={{width:"100%",padding:12,textAlign:"center",fontSize:14}}>🛡️ Privacy & Safety Settings</button>
-        <button className="btn2" style={{width:"100%",padding:12,textAlign:"center",fontSize:14,color:"var(--rust)"}} onClick={()=>import("../../lib/firebase").then(m=>import("firebase/auth").then(a=>a.signOut(m.auth)))}>🚪 Sign Out</button>
-      </div>
-    </div>
-  );
+    );
 }
 function AddEventModal({ onClose, onAdd }) {
     const [name, setName] = useState(""); const [venue, setVenue] = useState(""); const [type, setType] = useState("openmic"); const [allAges, setAllAges] = useState(false); const [slots, setSlots] = useState(""); const [date, setDate] = useState(""); const [errs, setErrs] = useState({});
@@ -793,6 +791,20 @@ function BModal({ b, onClose }) {
     );
 }
 
+function AgeGate({ onSelect }) {
+    return (
+        <div className="ag">
+            <div className="aglo">Music<span>Meetup</span></div>
+            <div className="agsub">Connect · Jam · Perform</div>
+            <div className="agq">How old are you?</div>
+            <div className="agh">We use this to keep younger musicians safe and connect you with the right people.</div>
+            <button className="agb agba" onClick={() => onSelect(false)}>18 or older</button>
+            <button className="agb agbt" onClick={() => onSelect(true)}>Under 18</button>
+            <div className="agn">Under-18 users have Safe Mode enabled automatically.</div>
+        </div>
+    );
+}
+
 export default function App({ user, profile }) {
     const [ageSet, setAgeSet] = useState(false);
     const [minor, setMinor] = useState(false);
@@ -816,6 +828,7 @@ export default function App({ user, profile }) {
     const [editLooking, setEditLooking] = useState(profile?.looking || []);
     const [editAbout, setEditAbout] = useState(profile?.about || "");
     const [savingProfile, setSavingProfile] = useState(false);
+
     const [realMusicians, setRealMusicians] = useState([]);
 
     useEffect(() => {
@@ -840,7 +853,9 @@ export default function App({ user, profile }) {
                         age: "adult",
                     }));
                 setRealMusicians(musicians);
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         };
         fetchMusicians();
     }, []);
@@ -852,7 +867,9 @@ export default function App({ user, profile }) {
                 const { db } = await import("../../lib/firebase");
                 const snap = await getDocs(query(collection(db, "events"), orderBy("createdAt", "desc")));
                 setEvents(snap.docs.map(d => ({ ...d.data(), id: d.id })));
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         };
         fetchEvents();
     }, []);
@@ -864,27 +881,19 @@ export default function App({ user, profile }) {
                 const { db } = await import("../../lib/firebase");
                 const snap = await getDocs(collection(db, "bands"));
                 setBands(snap.docs.map(d => ({ ...d.data(), id: d.id, isMyBand: d.data().createdBy === user.uid })));
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         };
         fetchBands();
     }, []);
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
-    const msgMusician = m => {
-        const ex = convs.find(c => c.mid === m.id);
-        if (ex) { openChat(ex.id); return; }
-        const nc = { id: Date.now(), mid: m.id, musician: m, unread: false, messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }] };
-        setConvs(p => [...p, nc]);
-        setConvId(nc.id);
-        setTab("messages");
-    };
+    const msgMusician = m => { const ex = convs.find(c => c.mid === m.id); if (ex) { openChat(ex.id); return; } const nc = { id: Date.now(), mid: m.id, unread: false, messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }] }; setConvs(p => [...p, nc]); setConvId(nc.id); setTab("messages"); };
     const sendMsg = (cid, txt) => {
         setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", text: txt, time: "Just now", type: "text" }] } : c));
-        setTimeout(() => {
-            const replies = ["Sounds great! I'm free this weekend.", "Nice! What style are you into?", "Let's do it! I know a good spot.", "Yeah for sure, hit me up Friday.", "That works for me 👍"];
-            setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now() + 1, from: "them", text: replies[Math.floor(Math.random() * replies.length)], time: "Just now", type: "text" }] } : c));
-        }, 1200);
+        setTimeout(() => { const replies = ["Sounds great! I'm free this weekend.", "Nice! What style are you into?", "Let's do it! I know a good spot.", "Yeah for sure, hit me up Friday.", "That works for me 👍"]; setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now() + 1, from: "them", text: replies[Math.floor(Math.random() * replies.length)], time: "Just now", type: "text" }] } : c)); }, 1200);
     };
     const sendJam = (cid, proposed) => setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", type: "jam_request", proposed, time: "Just now", status: "pending" }] } : c));
 
@@ -905,7 +914,7 @@ export default function App({ user, profile }) {
 
     const uc = convs.filter(c => c.unread).length;
     const activeConv = convs.find(c => c.id === convId);
-    const activeM = activeConv ? activeConv.musician : null;
+    const activeM = activeConv ? getM(activeConv.mid) : null;
 
     if (!ageSet) return (<><style>{S}</style><AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} /></>);
 
