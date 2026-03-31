@@ -793,7 +793,8 @@ function BModal({ b, onClose }) {
     );
 }
 
-export default function App({user, profile}){
+export default function App({ user, profile }) {
+    const [ageSet, setAgeSet] = useState(false);
     const [minor, setMinor] = useState(false);
     const [tab, setTab] = useState("home");
     const [filter, setFilter] = useState("All");
@@ -809,13 +810,12 @@ export default function App({user, profile}){
     const [showCB, setShowCB] = useState(false);
     const [toast, setToast] = useState(null);
     const [currentProfile, setCurrentProfile] = useState(profile);
-    const [editName, setEditName] = useState(profile?.name||"");
-    const [editInstrument, setEditInstrument] = useState(profile?.instrument||"");
-    const [editGenres, setEditGenres] = useState(profile?.genres||[]);
-    const [editLooking, setEditLooking] = useState(profile?.looking||[]);
-    const [editAbout, setEditAbout] = useState(profile?.about||"");
+    const [editName, setEditName] = useState(profile?.name || "");
+    const [editInstrument, setEditInstrument] = useState(profile?.instrument || "");
+    const [editGenres, setEditGenres] = useState(profile?.genres || []);
+    const [editLooking, setEditLooking] = useState(profile?.looking || []);
+    const [editAbout, setEditAbout] = useState(profile?.about || "");
     const [savingProfile, setSavingProfile] = useState(false);
-
     const [realMusicians, setRealMusicians] = useState([]);
 
     useEffect(() => {
@@ -840,9 +840,7 @@ export default function App({user, profile}){
                         age: "adult",
                     }));
                 setRealMusicians(musicians);
-            } catch(e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         };
         fetchMusicians();
     }, []);
@@ -854,9 +852,7 @@ export default function App({user, profile}){
                 const { db } = await import("../../lib/firebase");
                 const snap = await getDocs(query(collection(db, "events"), orderBy("createdAt", "desc")));
                 setEvents(snap.docs.map(d => ({ ...d.data(), id: d.id })));
-            } catch(e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         };
         fetchEvents();
     }, []);
@@ -868,215 +864,50 @@ export default function App({user, profile}){
                 const { db } = await import("../../lib/firebase");
                 const snap = await getDocs(collection(db, "bands"));
                 setBands(snap.docs.map(d => ({ ...d.data(), id: d.id, isMyBand: d.data().createdBy === user.uid })));
-            } catch(e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         };
         fetchBands();
     }, []);
-
-    // Load messages from Firestore once on mount (independent of musicians data)
-    useEffect(() => {
-        const loadMessages = async () => {
-            try {
-                const { collection, query, orderBy, getDocs } = await import("firebase/firestore");
-                const { db } = await import("../../lib/firebase");
-                
-                const msgMap = {};
-                
-                // Load ALL messages (sent and received) sorted by timestamp
-                const allMsgsQuery = query(
-                    collection(db, "messages"),
-                    orderBy("timestamp", "asc")
-                );
-                const allSnap = await getDocs(allMsgsQuery);
-                
-                allSnap.docs.forEach(doc => {
-                    const msg = doc.data();
-                    const isSent = msg.senderId === user.uid;
-                    const partnerId = isSent ? msg.recipientId : msg.senderId;
-                    const senderName = isSent && currentProfile?.name ? currentProfile.name : msg.senderName;
-                    
-                    if (!msgMap[partnerId]) {
-                        msgMap[partnerId] = {
-                            messages: [],
-                            senderName: senderName,
-                            lastTimestamp: msg.timestamp
-                        };
-                    }
-                    
-                    msgMap[partnerId].messages.push({
-                        id: doc.id,
-                        from: isSent ? "me" : "them",
-                        text: msg.text,
-                        time: new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                        timestamp: msg.timestamp,
-                        type: "text",
-                        senderName: msg.senderName
-                    });
-                });
-                
-                // Create conversations - will be enhanced with musician data as it becomes available
-                const newConvs = Object.keys(msgMap).map(partnerId => {
-                    const musicianFromList = realMusicians.find(m => m.id === partnerId);
-                    const fallbackName = msgMap[partnerId].senderName || "Unknown Musician";
-                    
-                    return {
-                        id: partnerId,
-                        mid: partnerId,
-                        musician: musicianFromList || { 
-                            id: partnerId, 
-                            name: fallbackName, 
-                            emoji: "🎵", 
-                            bg: "#f0e6d3" 
-                        },
-                        unread: false,
-                        messages: msgMap[partnerId].messages
-                    };
-                });
-                
-                setConvs(newConvs);
-            } catch(e) {
-                console.error("Error loading messages:", e);
-            }
-        };
-        
-        // Load messages as soon as we have user data (don't wait for musicians)
-        if (user?.uid) {
-            loadMessages();
-        }
-    }, [user.uid]);
-
-    // Set up real-time listener for new incoming messages
-    useEffect(() => {
-        if (!user?.uid) return;
-        
-        let unsubscribe = () => {};
-        
-        try {
-            const setupListener = async () => {
-                const { collection, query, where, onSnapshot, orderBy } = await import("firebase/firestore");
-                const { db } = await import("../../lib/firebase");
-                
-                const q = query(
-                    collection(db, "messages"),
-                    where("recipientId", "==", user.uid),
-                    orderBy("timestamp", "desc")
-                );
-                
-                unsubscribe = onSnapshot(q, (snap) => {
-                    snap.forEach(doc => {
-                        const msg = doc.data();
-                        setConvs(p => {
-                            const existingIdx = p.findIndex(c => c.mid === msg.senderId);
-                            
-                            const newMsg = {
-                                id: doc.id,
-                                from: "them",
-                                text: msg.text,
-                                time: new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                                timestamp: msg.timestamp,
-                                type: "text",
-                                senderName: msg.senderName
-                            };
-                            
-                            if (existingIdx >= 0) {
-                                // Add to existing conversation if not already there
-                                const alreadyExists = p[existingIdx].messages.some(m => m.id === doc.id);
-                                if (!alreadyExists) {
-                                    const updated = [...p];
-                                    updated[existingIdx] = {
-                                        ...updated[existingIdx],
-                                        messages: [...updated[existingIdx].messages, newMsg],
-                                        unread: true
-                                    };
-                                    return updated;
-                                }
-                            } else {
-                                // Create new conversation
-                                const musician = realMusicians.find(m => m.id === msg.senderId);
-                                return [...p, {
-                                    id: msg.senderId,
-                                    mid: msg.senderId,
-                                    musician: musician || { id: msg.senderId, name: msg.senderName, emoji: "🎵", bg: "#f0e6d3" },
-                                    unread: true,
-                                    messages: [newMsg]
-                                }];
-                            }
-                            return p;
-                        });
-                    });
-                });
-                
-                return unsubscribe;
-            };
-            
-            setupListener().then(unsub => {
-                unsubscribe = unsub;
-            });
-        } catch(e) {
-            console.error("Error setting up message listener:", e);
-        }
-        
-        return () => unsubscribe?.();
-    }, [user.uid]);
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
     const msgMusician = m => {
         const ex = convs.find(c => c.mid === m.id);
         if (ex) { openChat(ex.id); return; }
-        const nc = {
-            id: m.id,
-            mid: m.id,
-            musician: m,
-            unread: false,
-            messages: []
-        };
+        const nc = { id: Date.now(), mid: m.id, musician: m, unread: false, messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }] };
         setConvs(p => [...p, nc]);
         setConvId(nc.id);
         setTab("messages");
     };
-    const sendMsg = async (cid, txt) => {
+    const sendMsg = (cid, txt) => {
         setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", text: txt, time: "Just now", type: "text" }] } : c));
-        try {
-            const { collection, addDoc } = await import("firebase/firestore");
-            const { db } = await import("../../lib/firebase");
-            const conv = convs.find(c => c.id === cid);
-            if (conv) {
-                await addDoc(collection(db, "messages"), {
-                    conversationId: cid,
-                    senderId: user.uid,
-                    senderName: currentProfile?.name || "Unknown",
-                    recipientId: conv.mid,
-                    text: txt.trim(),
-                    timestamp: new Date().toISOString(),
-                });
-            }
-        } catch (e) {
-            console.error("Error sending message:", e);
-        }
+        setTimeout(() => {
+            const replies = ["Sounds great! I'm free this weekend.", "Nice! What style are you into?", "Let's do it! I know a good spot.", "Yeah for sure, hit me up Friday.", "That works for me 👍"];
+            setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now() + 1, from: "them", text: replies[Math.floor(Math.random() * replies.length)], time: "Just now", type: "text" }] } : c));
+        }, 1200);
     };
     const sendJam = (cid, proposed) => setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", type: "jam_request", proposed, time: "Just now", status: "pending" }] } : c));
 
     const saveProfile = async () => {
         setSavingProfile(true);
         try {
-            const {doc, setDoc} = await import("firebase/firestore");
-            const {db} = await import("../../lib/firebase");
-            const EMAP = {Guitar:"🎸",Bass:"🎸",Drums:"🥁",Keys:"🎹",Violin:"🎻",Sax:"🎷",Vocals:"🎵",Trumpet:"🎺",Banjo:"🪕",Mandolin:"🎸",Other:"🎵"};
-            const updated = {...currentProfile, name:editName, instrument:editInstrument, emoji:EMAP[editInstrument]||"🎵", genres:editGenres, looking:editLooking, about:editAbout};
+            const { doc, setDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            const EMAP = { Guitar: "🎸", Bass: "🎸", Drums: "🥁", Keys: "🎹", Violin: "🎻", Sax: "🎷", Vocals: "🎵", Trumpet: "🎺", Banjo: "🪕", Mandolin: "🎸", Other: "🎵" };
+            const updated = { ...currentProfile, name: editName, instrument: editInstrument, emoji: EMAP[editInstrument] || "🎵", genres: editGenres, looking: editLooking, about: editAbout };
             await setDoc(doc(db, "users", user.uid), updated);
             setCurrentProfile(updated);
             setShowEdit(false);
             doToast("Profile saved!");
-        } catch(e) { alert(e.message); }
+        } catch (e) { alert(e.message); }
         setSavingProfile(false);
     };
 
     const uc = convs.filter(c => c.unread).length;
     const activeConv = convs.find(c => c.id === convId);
     const activeM = activeConv ? activeConv.musician : null;
+
+    if (!ageSet) return (<><style>{S}</style><AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} /></>);
 
     return (
         <>
@@ -1087,7 +918,7 @@ export default function App({user, profile}){
                 <div style={{ display: tab === "messages" && activeConv ? "none" : "block" }}>
                     <div className="hdr">
                         <div><div className="logo">Music<span>Meetup</span></div><div className="hsub">Grand Junction, CO</div></div>
-                        <div className="avbtn" onClick={() => setTab("profile")}>{currentProfile?.emoji||"🎵"}</div>
+                        <div className="avbtn" onClick={() => setTab("profile")}>{currentProfile?.emoji || "🎵"}</div>
                     </div>
                     {tab === "home" && <Home musicians={realMusicians} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
@@ -1113,7 +944,7 @@ export default function App({user, profile}){
                         const ref = await addDoc(collection(db, "events"), { ...d, createdAt: new Date().toISOString(), addedBy: user.uid });
                         setEvents(p => [{ ...d, id: ref.id }, ...p]);
                         doToast("Event added for everyone!");
-                    } catch(e) { alert(e.message); }
+                    } catch (e) { alert(e.message); }
                 }} />}
                 {showCB && <CreateBandModal onClose={() => setShowCB(false)} myProfile={currentProfile} onCreate={async d => {
                     try {
@@ -1123,7 +954,7 @@ export default function App({user, profile}){
                         setBands(p => [...p, { ...d, id: ref.id }]);
                         doToast("Band profile created!");
                         setTab("bands");
-                    } catch(e) { alert(e.message); }
+                    } catch (e) { alert(e.message); }
                 }} />}
                 {showEdit && (
                     <div className="ov" onClick={() => setShowEdit(false)}><div className="mod" onClick={e => e.stopPropagation()}>
