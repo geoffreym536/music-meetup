@@ -734,9 +734,9 @@ function AddEventModal({ onClose, onAdd }) {
     );
 }
 
-function CreateBandModal({ onClose, onCreate }) {
+function CreateBandModal({ onClose, onCreate, myProfile }) {
     const [nm, setNm] = useState(""); const [desc, setDesc] = useState(""); const [loc, setLoc] = useState("Grand Junction, CO"); const [genres, togG] = useToggle([]); const [insts, togI] = useToggle([]); const [errs, setErrs] = useState({});
-    const go = () => { const e = {}; if (!nm.trim()) e.name = "Required"; if (!genres.length) e.g = "Select at least one"; setErrs(e); if (Object.keys(e).length) return; onCreate({ name: nm.trim(), emoji: "🎵", genres, dist: "Your Band", desc: desc.trim() || `${nm} is looking for musicians.`, isMyBand: true, members: [{ name: "Geoff M.", emoji: "🎸", role: "Guitar (Slide)", filled: true }, ...insts.map(i => ({ name: "Open", emoji: EMOJ[i] || "🎵", role: i, filled: false }))] }); onClose(); };
+    const go = () => { const e = {}; if (!nm.trim()) e.name = "Required"; if (!genres.length) e.g = "Select at least one"; setErrs(e); if (Object.keys(e).length) return; onCreate({ name: nm.trim(), emoji: "🎵", genres, dist: "Your Band", desc: desc.trim() || `${nm} is looking for musicians.`, isMyBand: true, members: [{ name: myProfile?.name || "Me", emoji: myProfile?.emoji || "🎵", role: myProfile?.instrument || "Musician", filled: true }, ...insts.map(i => ({ name: "Open", emoji: EMOJ[i] || "🎵", role: i, filled: false }))] }); onClose(); };
     return (
         <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
             <div className="mhnd" /><div className="mtit">Create Band Profile</div>
@@ -880,7 +880,7 @@ export default function App({user, profile}){
                 const { collection, getDocs } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
                 const snap = await getDocs(collection(db, "bands"));
-                setBands(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+                setBands(snap.docs.map(d => ({ ...d.data(), id: d.id, isMyBand: d.data().createdBy === user.uid })));
             } catch(e) {
                 console.error(e);
             }
@@ -955,7 +955,7 @@ export default function App({user, profile}){
                         doToast("Event added for everyone!");
                     } catch(e) { alert(e.message); }
                 }} />}
-                {showCB && <CreateBandModal onClose={() => setShowCB(false)} onCreate={async d => {
+                {showCB && <CreateBandModal onClose={() => setShowCB(false)} myProfile={currentProfile} onCreate={async d => {
                     try {
                         const { collection, addDoc } = await import("firebase/firestore");
                         const { db } = await import("../../lib/firebase");
