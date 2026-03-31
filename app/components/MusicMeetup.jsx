@@ -919,7 +919,7 @@ export default function App({user, profile}){
                     return {
                         id: partnerId,
                         mid: partnerId,
-                        musician: musician || { id: partnerId, name: "Unknown Musician", emoji: "🎵", bg: "#f0e6d3" },
+                        musician: musician || { id: partnerId, name: msg.senderName || "Unknown Musician", emoji: "🎵", bg: "#f0e6d3" },
                         unread: false,
                         messages: msgMap[partnerId]
                     };
@@ -931,11 +931,11 @@ export default function App({user, profile}){
             }
         };
         
-        // Only load when we have user data
-        if (user?.uid) {
+        // Only load when we have user data AND realMusicians loaded
+        if (user?.uid && realMusicians.length > 0) {
             loadMessages();
         }
-    }, [user.uid]);
+    }, [user.uid, realMusicians]);
 
     // Set up real-time listener for new incoming messages
     useEffect(() => {
@@ -968,6 +968,45 @@ export default function App({user, profile}){
                                 senderName: msg.senderName
                             };
                             
+                            if (existingIdx >= 0) {
+                                // Add to existing conversation if not already there
+                                const alreadyExists = p[existingIdx].messages.some(m => m.id === doc.id);
+                                if (!alreadyExists) {
+                                    const updated = [...p];
+                                    updated[existingIdx] = {
+                                        ...updated[existingIdx],
+                                        messages: [...updated[existingIdx].messages, newMsg],
+                                        unread: true
+                                    };
+                                    return updated;
+                                }
+                            } else {
+                                // Create new conversation
+                                const musician = realMusicians.find(m => m.id === msg.senderId);
+                                return [...p, {
+                                    id: msg.senderId,
+                                    mid: msg.senderId,
+                                    musician: musician || { id: msg.senderId, name: msg.senderName, emoji: "🎵", bg: "#f0e6d3" },
+                                    unread: true,
+                                    messages: [newMsg]
+                                }];
+                            }
+                            return p;
+                        });
+                    });
+                });
+                
+                return unsubscribe;
+            };
+            
+            setupListener().then(unsub => {
+                // Store cleanup function if needed
+                return () => unsub?.();
+            });
+        } catch(e) {
+            console.error("Error setting up message listener:", e);
+        }
+    }, [user.uid, realMusicians]);
                             if (existingIdx >= 0) {
                                 // Add to existing conversation if not already there
                                 const alreadyExists = p[existingIdx].messages.some(m => m.id === doc.id);
