@@ -834,6 +834,37 @@ export default function App({user, profile}){
     const [editAbout, setEditAbout] = useState(profile?.about||"");
     const [savingProfile, setSavingProfile] = useState(false);
 
+    const [realMusicians, setRealMusicians] = useState([]);
+
+    useEffect(() => {
+        const fetchMusicians = async () => {
+            try {
+                const { collection, getDocs } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const snap = await getDocs(collection(db, "users"));
+                const musicians = snap.docs
+                    .map(doc => doc.data())
+                    .filter(u => u.uid !== user.uid)
+                    .map(u => ({
+                        id: u.uid,
+                        name: u.name,
+                        emoji: u.emoji || "🎵",
+                        instrument: u.instrument,
+                        genres: u.genres || [],
+                        looking: (u.looking || []).join(", ") || "Jamming",
+                        dist: "Nearby",
+                        online: true,
+                        bg: "#f0e6d3",
+                        age: "adult",
+                    }));
+                setRealMusicians(musicians);
+            } catch(e) {
+                console.error(e);
+            }
+        };
+        fetchMusicians();
+    }, []);
+
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
     const msgMusician = m => { const ex = convs.find(c => c.mid === m.id); if (ex) { openChat(ex.id); return; } const nc = { id: Date.now(), mid: m.id, unread: false, messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }] }; setConvs(p => [...p, nc]); setConvId(nc.id); setTab("messages"); };
@@ -875,7 +906,7 @@ export default function App({user, profile}){
                         <div><div className="logo">Music<span>Meetup</span></div><div className="hsub">Grand Junction, CO</div></div>
                         <div className="avbtn" onClick={() => setTab("profile")}>{currentProfile?.emoji||"🎵"}</div>
                     </div>
-                    {tab === "home" && <Home musicians={MUSICIANS} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
+                    {tab === "home" && <Home musicians={realMusicians.length > 0 ? realMusicians : MUSICIANS} events={events} bands={bands} shows={shows} onM={setSelM} onB={setSelB} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} filter={filter} setFilter={setFilter} minor={minor} goLive={() => setTab("live")} />}
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
                     {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
