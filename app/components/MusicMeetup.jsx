@@ -889,22 +889,91 @@ export default function App({ user, profile }) {
         fetchBands();
     }, []);
 
+    useEffect(() => {
+        if (!user?.uid) return;
+        let unsub = () => { };
+        const setup = async () => {
+            try {
+                const { collection, query, where, onSnapshot, orderBy, getDocs } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const q = query(collection(db, "conversations"), where(`participants.${user.uid}`, "==", true));
+                unsub = onSnapshot(q, async snap => {
+                    const newConvs = await Promise.all(snap.docs.map(async convDoc => {
+                        const data = convDoc.data();
+                        const partnerId = Object.keys(data.participants).find(id => id !== user.uid);
+                        const msgsSnap = await getDocs(query(collection(db, "conversations", convDoc.id, "messages"), orderBy("createdAt", "asc")));
+                        const messages = msgsSnap.docs.map(m => ({
+                            id: m.id,
+                            from: m.data().from === user.uid ? "me" : "them",
+                            text: m.data().text,
+                            time: m.data().time,
+                            type: m.data().type || "text",
+                            proposed: m.data().proposed,
+                        }));
+                        const musician = realMusicians.find(m => m.id === partnerId) || {
+                            id: partnerId,
+                            name: data.participantNames?.[partnerId] || "Musician",
+                            emoji: data.participantEmojis?.[partnerId] || "🎵",
+                            bg: "#f0e6d3",
+                            instrument: "",
+                            online: false,
+                        };
+                        return { id: convDoc.id, mid: partnerId, musician, unread: false, messages };
+                    }));
+                    setConvs(newConvs);
+                });
+            } catch (e) { console.error(e); }
+        };
+        setup();
+        return () => unsub();
+    }, [user?.uid, realMusicians.length]);
+    
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
     const openChat = id => { setConvs(p => p.map(c => c.id === id ? { ...c, unread: false } : c)); setConvId(id); setTab("messages"); };
-    const msgMusician = m => {
-        const ex = convs.find(c => c.mid === m.id);
-        if (ex) { openChat(ex.id); return; }
-        const nc = { id: Date.now(), mid: m.id, musician: m, unread: false, messages: [{ id: 1, from: "me", text: `Hey ${m.name}! Saw your profile — would love to connect and jam sometime.`, time: "Just now", type: "text" }] };
+    const getConvId = (uid1, uid2) => [uid1, uid2].sort().join("_");
+
+    const msgMusician = async m => {
+        const convId = getConvId(user.uid, m.id);
+        const ex = convs.find(c => c.id === convId);
+        if (ex) { openChat(convId); return; }
+        try {
+            const { doc, setDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            await setDoc(doc(db, "conversations", convId), {
+                participants: { [user.uid]: true, [m.id]: true },
+                participantNames: { [user.uid]: currentProfile?.name || "Me", [m.id]: m.name },
+                participantEmojis: { [user.uid]: currentProfile?.emoji || "🎵", [m.id]: m.emoji },
+                lastMessage: "",
+                updatedAt: new Date().toISOString(),
+            }, { merge: true });
+        } catch (e) { console.error(e); }
+        const nc = { id: convId, mid: m.id, musician: m, unread: false, messages: [] };
         setConvs(p => [...p, nc]);
-        setConvId(nc.id);
+        setConvId(convId);
         setTab("messages");
     };
-    const sendMsg = (cid, txt) => {
-        setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", text: txt, time: "Just now", type: "text" }] } : c));
-        setTimeout(() => { const replies = ["Sounds great! I'm free this weekend.", "Nice! What style are you into?", "Let's do it! I know a good spot.", "Yeah for sure, hit me up Friday.", "That works for me 👍"]; setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now() + 1, from: "them", text: replies[Math.floor(Math.random() * replies.length)], time: "Just now", type: "text" }] } : c)); }, 1200);
-    };
-    const sendJam = (cid, proposed) => setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", type: "jam_request", proposed, time: "Just now", status: "pending" }] } : c));
 
+    const sendMsg = async (cid, txt) => {
+        const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", text: txt, time, type: "text" }] } : c));
+        try {
+            const { collection, addDoc, doc, updateDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            await addDoc(collection(db, "conversations", cid, "messages"), {
+                from: user.uid,
+                text: txt,
+                time,
+                type: "text",
+                createdAt: new Date().toISOString(),
+            });
+            await updateDoc(doc(db, "conversations", cid), {
+                lastMessage: txt,
+                updatedAt: new Date().toISOString(),
+            });
+        } catch (e) { console.error(e); }
+    };
+
+    const sendJam = (cid, proposed) => setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", type: "jam_request", proposed, time: "Just now", status: "pending" }] } : c));
     const saveProfile = async () => {
         setSavingProfile(true);
         try {
