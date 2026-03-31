@@ -835,6 +835,30 @@ export default function App({user, profile}){
 
     if (!ageSet) return (<><style>{S}</style><AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} /></>);
 
+    const saveProfile = async () => {
+        setSavingProfile(true);
+        try {
+            const {doc, setDoc} = await import("firebase/firestore");
+            const {db} = await import("../../lib/firebase");
+            const EMOJ={Guitar:"🎸",Bass:"🎸",Drums:"🥁",Keys:"🎹",Violin:"🎻",Sax:"🎷",Vocals:"🎵",Trumpet:"🎺",Banjo:"🪕",Mandolin:"🎸",Other:"🎵"};
+            const updated = {
+            ...currentProfile,
+            name: editName,
+            instrument: editInstrument,
+            emoji: EMOJ[editInstrument]||"🎵",
+            genres: editGenres,
+            looking: editLooking,
+            about: editAbout,
+            };
+            await setDoc(doc(db, "users", user.uid), updated);
+            setCurrentProfile(updated);
+            setShowEdit(false);
+        } catch(e) {
+            alert(e.message);
+        }
+        setSavingProfile(false);
+        };
+
     return (
         <>
             <style>{S}</style>
@@ -851,7 +875,7 @@ export default function App({user, profile}){
                     {tab === "bands" && <Bands bands={bands} onB={setSelB} onCreate={() => setShowCB(true)} />}
                     {tab === "events" && <Events events={events} onJoin={id => setEvents(p => p.map(e => e.id === id ? { ...e, joined: !e.joined } : e))} minor={minor} onAdd={() => setShowAddEv(true)} />}
                     {tab === "messages" && !activeConv && <Inbox convs={convs} onOpen={openChat} />}
-                    {tab==="profile"&&<Profile onEdit={()=>setShowEdit(true)} profile={profile}/>}
+                    {tab==="profile"&&<Profile onEdit={()=>setShowEdit(true)} profile={currentProfile}/>}
                     <nav className="bnav">
                         {[{ id: "home", icon: <IH />, label: "Home" }, { id: "live", icon: <ILM />, label: "Live" }, { id: "bands", icon: <IB />, label: "Bands" }, { id: "events", icon: <IC />, label: "Events" }, { id: "messages", icon: <IM />, label: "Messages", badge: uc }].map(n => (
                             <button key={n.id} className={`nbtn${tab === n.id ? " on" : ""}`} onClick={() => { setTab(n.id); if (n.id !== "messages") setConvId(null); }}>
@@ -865,17 +889,17 @@ export default function App({user, profile}){
                 <BModal b={selB} onClose={() => setSelB(null)} />
                 {showAddEv && <AddEventModal onClose={() => setShowAddEv(false)} onAdd={d => { setEvents(p => [...p, { ...d, id: Date.now() }]); doToast("Event added!"); }} />}
                 {showCB && <CreateBandModal onClose={() => setShowCB(false)} onCreate={d => { setBands(p => [...p, { ...d, id: Date.now() }]); doToast("Band profile created!"); setTab("bands"); }} />}
-                {showEdit && (
-                    <div className="ov" onClick={() => setShowEdit(false)}><div className="mod" onClick={e => e.stopPropagation()}>
-                        <div className="mhnd" /><div className="mtit">Edit Your Profile</div>
-                        <div className="fg"><label className="fl">Display Name</label><input className="fi" defaultValue="Geoff M." /></div>
-                        <div className="fg"><label className="fl">Primary Instrument</label><select className="fsl">{INSTS.map(i => <option key={i}>{i}</option>)}</select></div>
-                        <div className="fg"><label className="fl">Genres</label><div className="cbg">{GENRES.map(g => <div key={g} className={`cbl${["Blues", "Rock", "Indie"].includes(g) ? " ck" : ""}`}>{g}</div>)}</div></div>
-                        <div className="fg"><label className="fl">Looking For</label><div className="cbg">{LOOK.map(l => <div key={l} className={`cbl${["Open Mic Partner", "Jam Sessions", "Gigging"].includes(l) ? " ck" : ""}`}>{l}</div>)}</div></div>
-                        <div className="fg"><label className="fl">About You</label><textarea className="fta" defaultValue="Slide guitarist with Patchwork Sound..." /></div>
-                        <button className="btn1" style={{ width: "100%", padding: 14, marginTop: 6 }} onClick={() => setShowEdit(false)}>Save Profile</button>
+                {showEdit&&(
+                    <div className="ov" onClick={()=>setShowEdit(false)}><div className="mod" onClick={e=>e.stopPropagation()}>
+                        <div className="mhnd"/><div className="mtit">Edit Your Profile</div>
+                        <div className="fg"><label className="fl">Display Name</label><input className="fi" value={editName} onChange={e=>setEditName(e.target.value)}/></div>
+                        <div className="fg"><label className="fl">Primary Instrument</label><select className="fsl" value={editInstrument} onChange={e=>setEditInstrument(e.target.value)}>{INSTS.map(i=><option key={i}>{i}</option>)}</select></div>
+                        <div className="fg"><label className="fl">Genres</label><div className="cbg">{GENRES.map(g=><div key={g} className={`cbl${editGenres.includes(g)?" ck":""}`} onClick={()=>setEditGenres(p=>p.includes(g)?p.filter(x=>x!==g):[...p,g])}>{g}</div>)}</div></div>
+                        <div className="fg"><label className="fl">Looking For</label><div className="cbg">{LOOK.map(l=><div key={l} className={`cbl${editLooking.includes(l)?" ck":""}`} onClick={()=>setEditLooking(p=>p.includes(l)?p.filter(x=>x!==l):[...p,l])}>{l}</div>)}</div></div>
+                        <div className="fg"><label className="fl">About You</label><textarea className="fta" value={editAbout} onChange={e=>setEditAbout(e.target.value)}/></div>
+                        <button className="btn1" style={{width:"100%",padding:14,marginTop:6}} onClick={saveProfile} disabled={savingProfile}>{savingProfile?"Saving...":"Save Profile"}</button>
                     </div></div>
-                )}
+                    )}
             </div>
         </>
     );
