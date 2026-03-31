@@ -815,7 +815,7 @@ export default function App({user, profile}){
     const [minor, setMinor] = useState(false);
     const [tab, setTab] = useState("home");
     const [filter, setFilter] = useState("All");
-    const [events, setEvents] = useState(INIT_EVENTS);
+    const [events, setEvents] = useState([]);
     const [bands, setBands] = useState(INIT_BANDS);
     const [shows, setShows] = useState(INIT_SHOWS);
     const [convs, setConvs] = useState(INIT_CONVS);
@@ -863,6 +863,25 @@ export default function App({user, profile}){
             }
         };
         fetchMusicians();
+    }, []);
+
+    useEffect(() => {
+        const fetchEvents = async () => {
+            try {
+                const { collection, getDocs, orderBy, query } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const snap = await getDocs(query(collection(db, "events"), orderBy("createdAt", "desc")));
+                if (snap.docs.length > 0) {
+                    setEvents(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+                } else {
+                    setEvents(INIT_EVENTS);
+                }
+            } catch(e) {
+                console.error(e);
+                setEvents(INIT_EVENTS);
+            }
+        };
+        fetchEvents();
     }, []);
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
@@ -923,7 +942,15 @@ export default function App({user, profile}){
                 </div>
                 <MModal m={selM} onClose={() => setSelM(null)} minor={minor} onMsg={msgMusician} />
                 <BModal b={selB} onClose={() => setSelB(null)} />
-                {showAddEv && <AddEventModal onClose={() => setShowAddEv(false)} onAdd={d => { setEvents(p => [...p, { ...d, id: Date.now() }]); doToast("Event added!"); }} />}
+                {showAddEv && <AddEventModal onClose={() => setShowAddEv(false)} onAdd={async d => {
+                    try {
+                        const { collection, addDoc } = await import("firebase/firestore");
+                        const { db } = await import("../../lib/firebase");
+                        const ref = await addDoc(collection(db, "events"), { ...d, createdAt: new Date().toISOString(), addedBy: user.uid });
+                        setEvents(p => [{ ...d, id: ref.id }, ...p]);
+                        doToast("Event added for everyone!");
+                    } catch(e) { alert(e.message); }
+                }} />}
                 {showCB && <CreateBandModal onClose={() => setShowCB(false)} onCreate={d => { setBands(p => [...p, { ...d, id: Date.now() }]); doToast("Band profile created!"); setTab("bands"); }} />}
                 {showEdit && (
                     <div className="ov" onClick={() => setShowEdit(false)}><div className="mod" onClick={e => e.stopPropagation()}>
