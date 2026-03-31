@@ -564,10 +564,11 @@ function MCard({ m, onClick, minor }) {
     );
 }
 
-function BCard({ b, onClick }) {
+function BCard({ b, onClick, onManage, meId }) {
     const open = b.members.filter(m => !m.filled);
     const filled = b.members.filter(m => m.filled).length;
     const pct = Math.round((filled / b.members.length) * 100);
+    const canManage = b.isMyBand || (meId && (b.members || []).some(m => m.uid === meId));
     return (
         <div className="bcard" onClick={() => onClick(b)}>
             <div className="bchdr">
@@ -602,12 +603,20 @@ function BCard({ b, onClick }) {
                 <div className="bdesc">{b.desc}</div>
             </div>
             <div className="bfoot">
-                {b.isMyBand
-                    ? <button className="btn1" style={{ fontSize: 13 }}>⚙️ Manage Band</button>
-                    : <>
+                {canManage ? (
+                    <button
+                        className="btn1"
+                        style={{ fontSize: 13 }}
+                        onClick={e => { e.stopPropagation(); onManage && onManage(b); }}
+                    >
+                        ⚙️ Manage Band
+                    </button>
+                ) : (
+                    <>
                         <button className="btn1" style={{ fontSize: 13 }} onClick={e => e.stopPropagation()}>Apply to Join</button>
                         <button className="btn2" style={{ fontSize: 13 }} onClick={e => e.stopPropagation()}>Message</button>
-                    </>}
+                    </>
+                )}
             </div>
         </div>
     );
@@ -791,7 +800,8 @@ function Inbox({ convs, onOpen }) {
     );
 }
 
-function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFilter, minor, goLive }) {
+function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFilter, minor, goLive, onManage, userId }) {
+    ``
     const tonight = shows.find(s => s.tonight);
     return (
         <div className="pg">
@@ -835,7 +845,18 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
             </div>
 
             <div className="sh" style={{ marginTop: 8 }}><div className="st">Bands Seeking Members</div></div>
-            {bands.filter(b => b.members.some(m => !m.filled)).slice(0, 2).map(b => <BCard key={b.id} b={b} onClick={onB} />)}
+            {bands
+                .filter(b => b.members.some(m => !m.filled))
+                .slice(0, 2)
+                .map(b => (
+                    <BCard
+                        key={b.id}
+                        b={b}
+                        onClick={onB}
+                        onManage={onManage}
+                        meId={userId}
+                    />
+                ))}
 
             <div className="sh"><div className="st">Upcoming Events</div></div>
             {minor && (
@@ -933,7 +954,7 @@ function MyApplications({ userId }) {
     );
 }
 
-function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId, appliedGigIds }) {
+function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId, appliedGigIds, onManage }) {
     const [tab, setTab] = useState("discover");
     const shown = tab === "mybands"
         ? bands.filter(b => b.isMyBand)
@@ -961,7 +982,9 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId, appliedGigI
 
             <div style={{ height: 12 }} />
 
-            {tab !== "gigs" && tab !== "applied" && shown.map(b => <BCard key={b.id} b={b} onClick={onB} />)}
+            {tab !== "gigs" && tab !== "applied" && shown.map(b => (
+                <BCard key={b.id} b={b} onClick={onB} onManage={onManage} meId={userId} />
+            ))}
 
             {tab !== "gigs" && tab !== "applied" && (
                 <div
@@ -1237,7 +1260,7 @@ function CreateBandModal({ onClose, onCreate, myProfile }) {
             desc: desc.trim() || `${nm} is looking for musicians.`,
             isMyBand: true,
             members: [
-                { name: myProfile?.name || "Me", emoji: myProfile?.emoji || "🎵", role: myProfile?.instrument || "Musician", filled: true },
+                { name: myProfile?.name || "Me", emoji: myProfile?.emoji || "🎵", role: myProfile?.instrument || "Musician", filled: true, uid: myProfile?.uid || "" },
                 ...insts.map(i => ({ name: "Open", emoji: EMOJ[i] || "🎵", role: i, filled: false }))
             ]
         });
@@ -1384,8 +1407,88 @@ function MModal({ m, onClose, minor, onMsg }) {
         </div>
     );
 }
+function ManageBandModal({ b, onClose, onSave }) {
+    const [name, setName] = useState(b.name);
+    const [desc, setDesc] = useState(b.desc || "");
+    const [genres, setGenres] = useState(b.genres || []);
+    const [saving, setSaving] = useState(false);
 
-function BModal({ b, onClose }) {
+    const toggleGenre = g => setGenres(p => p.includes(g) ? p.filter(x => x !== g) : [...p, g]);
+
+    const save = async () => {
+        if (!name.trim()) return;
+        setSaving(true);
+        try {
+            const { doc, updateDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            const updated = { ...b, name: name.trim(), desc: desc.trim(), genres };
+            await updateDoc(doc(db, "bands", b.id), { name: name.trim(), desc: desc.trim(), genres });
+            onSave(updated);
+            onClose();
+        } catch (e) { alert(e.message); }
+        setSaving(false);
+    };
+
+    const removeSlot = async (idx) => {
+        const updated = b.members.filter((_, i) => i !== idx);
+        try {
+            const { doc, updateDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            await updateDoc(doc(db, "bands", b.id), { members: updated });
+            onSave({ ...b, members: updated });
+        } catch (e) { alert(e.message); }
+    };
+
+    return (
+        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
+            <div className="mhnd" />
+            <div className="mtit">Manage Band</div>
+            <div className="fg">
+                <label className="fl">Band Name</label>
+                <input className="fi" value={name} onChange={e => setName(e.target.value)} />
+            </div>
+            <div className="fg">
+                <label className="fl">Genres</label>
+                <div className="cbg">
+                    {GENRES.map(g => (
+                        <div key={g} className={`cbl${genres.includes(g) ? " ck" : ""}`} onClick={() => toggleGenre(g)}>{g}</div>
+                    ))}
+                </div>
+            </div>
+            <div className="fg">
+                <label className="fl">About</label>
+                <textarea className="fta" value={desc} onChange={e => setDesc(e.target.value)} />
+            </div>
+            <div className="fg">
+                <label className="fl">Roster</label>
+                {b.members.map((m, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--warm)" }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: m.filled ? "#f0e6d3" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, opacity: m.filled ? 1 : .4 }}>
+                            {m.filled ? m.emoji : "?"}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 500 }}>{m.filled ? m.name : "Open slot"}</div>
+                            <div style={{ fontSize: 11, color: "var(--amber)" }}>{m.role}</div>
+                        </div>
+                        {!m.filled && (
+                            <button onClick={() => removeSlot(i)} style={{ background: "#fce4ec", color: "var(--rust)", border: "1px solid #f48fb1", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: "DM Sans,sans-serif" }}>
+                                Remove
+                            </button>
+                        )}
+                    </div>
+                ))}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                <button className="btn1" style={{ flex: 1, padding: 14 }} onClick={save} disabled={saving}>
+                    {saving ? "Saving..." : "Save Changes"}
+                </button>
+                <button className="btn2" style={{ padding: 14 }} onClick={onClose}>Cancel</button>
+            </div>
+        </div></div>
+    );
+}
+
+function BModal({ b, onClose, musicians, onMsg }) {
     if (!b) return null;
 
     return (
@@ -1393,10 +1496,12 @@ function BModal({ b, onClose }) {
             <div className="mod" onClick={e => e.stopPropagation()}>
                 <div className="mhnd" />
                 <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 16 }}>
-                    <div style={{ width: 56, height: 56, borderRadius: 14, background: "#f0e6d3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{b.emoji}</div>
+                    <div style={{ width: 56, height: 56, borderRadius: 14, background: "#f0e6d3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
+                        {b.emoji}
+                    </div>
                     <div>
                         <div style={{ fontFamily: "Playfair Display,serif", fontSize: 22, marginBottom: 2 }}>{b.name}</div>
-                        <div style={{ fontSize: 11, color: "var(--amber)", fontWeight: 500, textTransform: "uppercase" }}>{b.genres.join(" · ")}</div>
+                        <div style={{ fontSize: 11, color: "var(--amber)", fontWeight: 500, textTransform: "uppercase" }}>{(b.genres || []).join(" · ")}</div>
                         <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>📍 {b.dist}</div>
                     </div>
                 </div>
@@ -1408,21 +1513,61 @@ function BModal({ b, onClose }) {
 
                 <div style={{ marginBottom: 16 }}>
                     <div className="fl">Roster</div>
-                    {b.members.map((m, i) => (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--warm)" }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: m.filled ? "#f0e6d3" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, opacity: m.filled ? 1 : .4 }}>
-                                {m.filled ? m.emoji : "?"}
+
+                    {(b.members || []).map((m, i) => {
+                        const profile = musicians?.find(mu => mu.id === m.uid);
+                        const clickable = !!profile;
+
+                        return (
+                            <div
+                                key={i}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    padding: "8px 0",
+                                    borderBottom: "1px solid var(--warm)",
+                                    cursor: clickable ? "pointer" : "default",
+                                }}
+                                onClick={() => {
+                                    if (!profile) return;
+                                    onClose();
+                                    onMsg && onMsg(profile);
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 8,
+                                        background: m.filled ? "#f0e6d3" : "#f5f5f5",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: 16,
+                                        opacity: m.filled ? 1 : 0.4,
+                                    }}
+                                >
+                                    {m.filled ? m.emoji : "?"}
+                                </div>
+
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 500, color: m.filled ? "var(--ink)" : "var(--muted)" }}>
+                                        {m.filled ? m.name : "Open slot"}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: m.filled ? "var(--amber)" : "var(--rust)", fontWeight: 500 }}>
+                                        {m.role}
+                                    </div>
+                                </div>
+
+                                {profile && <span style={{ fontSize: 11, color: "var(--amber)" }}>View profile ›</span>}
+                                {!m.filled && <span className="stag sopen">OPEN</span>}
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 13, fontWeight: 500, color: m.filled ? "var(--ink)" : "var(--muted)" }}>{m.filled ? m.name : "Open slot"}</div>
-                                <div style={{ fontSize: 11, color: m.filled ? "var(--amber)" : "var(--rust)", fontWeight: 500 }}>{m.role}</div>
-                            </div>
-                            {!m.filled && <span className="stag sopen">OPEN</span>}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
-                {!b.isMyBand && b.members.some(m => !m.filled) && (
+                {!b.isMyBand && (b.members || []).some(m => !m.filled) && (
                     <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                         <button className="btn1" style={{ flex: 1 }}>🎵 Apply to Join</button>
                         <button className="btn1" style={{ flex: 1, background: "var(--sage)" }}>💬 Message Band</button>
@@ -1435,8 +1580,8 @@ function BModal({ b, onClose }) {
             </div>
         </div>
     );
-}
-
+  }
+  
 function AgeGate({ onSelect }) {
     return (
         <div className="ag">
@@ -1468,7 +1613,7 @@ export default function App({ user, profile }) {
     const [showCB, setShowCB] = useState(false);
     const [toast, setToast] = useState(null);
     const [currentProfile, setCurrentProfile] = useState(profile);
-
+    const [managingBand, setManagingBand] = useState(null);
     const [editName, setEditName] = useState(profile?.name || "");
     const [editInstrument, setEditInstrument] = useState(profile?.instrument || "");
     const [editGenres, setEditGenres] = useState(profile?.genres || []);
@@ -1767,7 +1912,9 @@ export default function App({ user, profile }) {
                             setFilter={setFilter}
                             minor={minor}
                             goLive={() => setTab("live")}
-                        />
+                            onManage={setManagingBand}
+                            userId={user.uid}
+                      />
                     )}
 
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
@@ -1781,7 +1928,8 @@ export default function App({ user, profile }) {
                             onApply={setApplyingGig}
                             userId={user.uid}
                             appliedGigIds={appliedGigIds}
-                        />
+                            onManage={setManagingBand}
+                      />
                     )}
 
                     {tab === "events" && (
@@ -1817,7 +1965,12 @@ export default function App({ user, profile }) {
                 </div>
 
                 <MModal m={selM} onClose={() => setSelM(null)} minor={minor} onMsg={msgMusician} />
-                <BModal b={selB} onClose={() => setSelB(null)} />
+                <BModal
+                    b={selB}
+                    onClose={() => setSelB(null)}
+                    musicians={realMusicians}
+                    onMsg={m => setSelM(m)}
+                />
 
                 {showAddEv && (
                     <AddEventModal
@@ -1852,6 +2005,14 @@ export default function App({ user, profile }) {
                                 alert(e.message);
                             }
                         }}
+                    />
+                )}
+
+                {managingBand && (
+                    <ManageBandModal
+                        b={managingBand}
+                        onClose={() => setManagingBand(null)}
+                        onSave={updated => setBands(p => p.map(b => b.id === updated.id ? updated : b))}
                     />
                 )}
 
