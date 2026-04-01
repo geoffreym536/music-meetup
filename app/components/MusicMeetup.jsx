@@ -1413,27 +1413,61 @@ function MModal({ m, onClose, minor, onMsg }) {
     );
 }
 
-function ManageBandModal({ b, onClose, onSave }) {
-    const [name, setName] = useState(b.name);
-    const [desc, setDesc] = useState(b.desc || "");
-    const [genres, setGenres] = useState(b.genres || []);
-    const [members, setMembers] = useState(b.members || []);
-    const [saving, setSaving] = useState(false);
+function FillSlotPicker({ members, bandId, onUpdate }) {
+    const [fillingIdx, setFillingIdx] = useState(null);
+    const [search, setSearch] = useState("");
+    const [appUsers, setAppUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const [manualName, setManualName] = useState("");
 
-    const toggleGenre = g => setGenres(p => p.includes(g) ? p.filter(x => x !== g) : [...p, g]);
+    const openPicker = async (idx) => {
+        setFillingIdx(idx);
+        setSearch("");
+        setManualName("");
+        setLoadingUsers(true);
+        try {
+            const { collection, getDocs } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            const snap = await getDocs(collection(db, "users"));
+            setAppUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (e) { console.error(e); }
+        setLoadingUsers(false);
+    };
 
-    const save = async () => {
-        if (!name.trim()) return;
-        setSaving(true);
+    const fillWithUser = async (idx, appUser) => {
+        const updated = members.map((m, i) => i === idx ? {
+            ...m,
+            filled: true,
+            name: appUser.name,
+            emoji: appUser.emoji || "🎵",
+            uid: appUser.uid,
+        } : m);
         try {
             const { doc, updateDoc } = await import("firebase/firestore");
             const { db } = await import("../../lib/firebase");
-            const updated = { ...b, name: name.trim(), desc: desc.trim(), genres, members };
-            await updateDoc(doc(db, "bands", b.id), { name: name.trim(), desc: desc.trim(), genres, members });
-            onSave(updated);
-            onClose();
+            await updateDoc(doc(db, "bands", bandId), { members: updated });
+            onUpdate(updated);
         } catch (e) { alert(e.message); }
-        setSaving(false);
+        setFillingIdx(null);
+    };
+
+    const fillManual = async (idx) => {
+        if (!manualName.trim()) return;
+        const slot = members[idx];
+        const updated = members.map((m, i) => i === idx ? {
+            ...m,
+            filled: true,
+            name: manualName.trim(),
+            emoji: EMOJ[slot.role] || "🎵",
+            uid: null,
+        } : m);
+        try {
+            const { doc, updateDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            await updateDoc(doc(db, "bands", bandId), { members: updated });
+            onUpdate(updated);
+        } catch (e) { alert(e.message); }
+        setFillingIdx(null);
     };
 
     const removeSlot = async (idx) => {
@@ -1441,27 +1475,139 @@ function ManageBandModal({ b, onClose, onSave }) {
         try {
             const { doc, updateDoc } = await import("firebase/firestore");
             const { db } = await import("../../lib/firebase");
-            await updateDoc(doc(db, "bands", b.id), { members: updated });
-            setMembers(updated);
-            onSave({ ...b, members: updated });
+            await updateDoc(doc(db, "bands", bandId), { members: updated });
+            onUpdate(updated);
         } catch (e) { alert(e.message); }
+    };
+
+    const filtered = appUsers.filter(u =>
+        u.name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.instrument?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div>
+            {members.map((m, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--warm)" }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: m.filled ? "#f0e6d3" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, opacity: m.filled ? 1 : .4 }}>
+                        {m.filled ? m.emoji : "?"}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{m.filled ? m.name : "Open slot"}</div>
+                        <div style={{ fontSize: 11, color: "var(--amber)" }}>{m.role}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                        {!m.filled && (
+                            <button onClick={() => openPicker(i)} style={{ background: "var(--warm)", color: "var(--ink)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: "DM Sans,sans-serif" }}>
+                                Fill
+                            </button>
+                        )}
+                        <button onClick={() => removeSlot(i)} style={{ background: "#fce4ec", color: "var(--rust)", border: "1px solid #f48fb1", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: "DM Sans,sans-serif" }}>
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            ))}
+
+            {fillingIdx !== null && (
+                <div className="ov" onClick={() => setFillingIdx(null)}>
+                    <div className="mod" onClick={e => e.stopPropagation()}>
+                        <div className="mhnd" />
+                        <div className="mtit">Fill {members[fillingIdx]?.role} Slot</div>
+                        <div className="fg">
+                            <label className="fl">Search App Users</label>
+                            <input className="fi" placeholder="Search by name or instrument..." value={search} onChange={e => setSearch(e.target.value)} />
+                        </div>
+                        {loadingUsers ? (
+                            <div style={{ fontSize: 13, color: "var(--muted)", padding: "8px 0" }}>Loading...</div>
+                        ) : (
+                            <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: 14 }}>
+                                {filtered.length === 0 && search && (
+                                    <div style={{ fontSize: 12, color: "var(--muted)", padding: "8px 0" }}>No users found</div>
+                                )}
+                                {filtered.slice(0, 10).map(u => (
+                                    <div key={u.id} onClick={() => fillWithUser(fillingIdx, u)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--warm)", cursor: "pointer" }}>
+                                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f0e6d3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{u.emoji || "🎵"}</div>
+                                        <div>
+                                            <div style={{ fontSize: 13, fontWeight: 500 }}>{u.name}</div>
+                                            <div style={{ fontSize: 11, color: "var(--amber)" }}>{u.instrument}</div>
+                                        </div>
+                                        <div style={{ marginLeft: "auto", fontSize: 11, color: "var(--amber)" }}>Select ›</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div className="fg">
+                            <label className="fl">Or Add Manually</label>
+                            <input className="fi" placeholder="Enter name..." value={manualName} onChange={e => setManualName(e.target.value)} />
+                        </div>
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button className="btn1" style={{ flex: 1, padding: 12 }} onClick={() => fillManual(fillingIdx)} disabled={!manualName.trim()}>Add Manually</button>
+                            <button className="btn2" style={{ padding: 12 }} onClick={() => setFillingIdx(null)}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ManageBandModal({ b, onClose, onSave }) {
+    const [name, setName] = useState(b.name);
+    const [desc, setDesc] = useState(b.desc || "");
+    const [genres, setGenres] = useState(b.genres || []);
+    const [members, setMembers] = useState(b.members || []);
+    const [saving, setSaving] = useState(false);
+
+    const toggleGenre = g =>
+        setGenres(p => (p.includes(g) ? p.filter(x => x !== g) : [...p, g]));
+
+    const save = async () => {
+        if (!name.trim()) return;
+        setSaving(true);
+        try {
+            const { doc, updateDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            const updated = {
+                ...b,
+                name: name.trim(),
+                desc: desc.trim(),
+                genres,
+                members,
+            };
+            await updateDoc(doc(db, "bands", b.id), {
+                name: name.trim(),
+                desc: desc.trim(),
+                genres,
+                members,
+            });
+            onSave(updated);
+            onClose();
+        } catch (e) {
+            alert(e.message);
+        }
+        setSaving(false);
     };
 
     return (
         <div className="ov" onClick={onClose}>
-            <div className="mod" onClick={(e) => e.stopPropagation()}>
+            <div className="mod" onClick={e => e.stopPropagation()}>
                 <div className="mhnd" />
                 <div className="mtit">Manage Band</div>
 
                 <div className="fg">
                     <label className="fl">Band Name</label>
-                    <input className="fi" value={name} onChange={(e) => setName(e.target.value)} />
+                    <input
+                        className="fi"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                    />
                 </div>
 
                 <div className="fg">
                     <label className="fl">Genres</label>
                     <div className="cbg">
-                        {GENRES.map((g) => (
+                        {GENRES.map(g => (
                             <div
                                 key={g}
                                 className={`cbl${genres.includes(g) ? " ck" : ""}`}
@@ -1475,104 +1621,89 @@ function ManageBandModal({ b, onClose, onSave }) {
 
                 <div className="fg">
                     <label className="fl">About</label>
-                    <textarea className="fta" value={desc} onChange={(e) => setDesc(e.target.value)} />
+                    <textarea
+                        className="fta"
+                        value={desc}
+                        onChange={e => setDesc(e.target.value)}
+                    />
                 </div>
 
                 <div className="fg">
                     <label className="fl">Roster</label>
 
-                    {members.map((m, i) => (
-                        <div
-                            key={i}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                padding: "8px 0",
-                                borderBottom: "1px solid var(--warm)",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: 8,
-                                    background: m.filled ? "#f0e6d3" : "#f5f5f5",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: 16,
-                                    opacity: m.filled ? 1 : 0.4,
-                                }}
-                            >
-                                {m.filled ? m.emoji : "?"}
-                            </div>
-
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 13, fontWeight: 500 }}>
-                                    {m.filled ? m.name : "Open slot"}
-                                </div>
-                                <div style={{ fontSize: 11, color: "var(--amber)" }}>{m.role}</div>
-                            </div>
-
-                            {!m.filled && (
-                                <button
-                                    onClick={() => removeSlot(i)}
-                                    style={{
-                                        background: "#fce4ec",
-                                        color: "var(--rust)",
-                                        border: "1px solid #f48fb1",
-                                        borderRadius: 8,
-                                        padding: "4px 10px",
-                                        fontSize: 12,
-                                        cursor: "pointer",
-                                        fontFamily: "DM Sans,sans-serif",
-                                    }}
-                                >
-                                    Remove
-                                </button>
-                            )}
-                        </div>
-                    ))}
+                    <FillSlotPicker
+                        members={members}
+                        bandId={b.id}
+                        onUpdate={updated => {
+                            setMembers(updated);
+                            onSave({ ...b, members: updated });
+                        }}
+                    />
 
                     <div style={{ marginTop: 12 }}>
                         <label className="fl">Add Open Slot</label>
                         <div className="cbg">
-                            {["Guitar", "Bass", "Drums", "Keys", "Vocals", "Violin", "Sax", "Trumpet", "Other"].map(
-                                (inst) => (
-                                    <div
-                                        key={inst}
-                                        className="cbl"
-                                        onClick={async () => {
-                                            const updated = [
-                                                ...members,
-                                                { name: "Open", emoji: EMOJ[inst] || "🎵", role: inst, filled: false },
-                                            ];
-
-                                            try {
-                                                const { doc, updateDoc } = await import("firebase/firestore");
-                                                const { db } = await import("../../lib/firebase");
-                                                await updateDoc(doc(db, "bands", b.id), { members: updated });
-                                                setMembers(updated);
-                                                onSave({ ...b, members: updated });
-                                            } catch (e) {
-                                                alert(e.message);
-                                            }
-                                        }}
-                                    >
-                                        + {inst}
-                                    </div>
-                                )
-                            )}
+                            {[
+                                "Guitar",
+                                "Bass",
+                                "Drums",
+                                "Keys",
+                                "Vocals",
+                                "Violin",
+                                "Sax",
+                                "Trumpet",
+                                "Other",
+                            ].map(inst => (
+                                <div
+                                    key={inst}
+                                    className="cbl"
+                                    onClick={async () => {
+                                        const updated = [
+                                            ...members,
+                                            {
+                                                name: "Open",
+                                                emoji: EMOJ[inst] || "🎵",
+                                                role: inst,
+                                                filled: false,
+                                            },
+                                        ];
+                                        try {
+                                            const { doc, updateDoc } =
+                                                await import("firebase/firestore");
+                                            const { db } =
+                                                await import("../../lib/firebase");
+                                            await updateDoc(
+                                                doc(db, "bands", b.id),
+                                                { members: updated }
+                                            );
+                                            setMembers(updated);
+                                            onSave({ ...b, members: updated });
+                                        } catch (e) {
+                                            alert(e.message);
+                                        }
+                                    }}
+                                >
+                                    + {inst}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
 
                 <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-                    <button className="btn1" style={{ flex: 1, padding: 14 }} onClick={save} disabled={saving}>
+                    <button
+                        className="btn1"
+                        style={{ flex: 1, padding: 14 }}
+                        onClick={save}
+                        disabled={saving}
+                    >
                         {saving ? "Saving..." : "Save Changes"}
                     </button>
-                    <button className="btn2" style={{ padding: 14 }} onClick={onClose}>
+                    <button
+                        className="btn2"
+                        style={{ padding: 14 }}
+                        onClick={onClose}
+                    >
                         Cancel
                     </button>
                 </div>
