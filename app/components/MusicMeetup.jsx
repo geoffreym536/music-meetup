@@ -573,7 +573,7 @@ function BCard({ b, onClick, onManage, meId }) {
     const open = b.members.filter(m => !m.filled);
     const filled = b.members.filter(m => m.filled).length;
     const pct = Math.round((filled / b.members.length) * 100);
-    const canManage = b.isMyBand || (meId && (b.members || []).some(m => m.uid === meId));
+    const canManage = b.isMyBand;
     return (
         <div className="bcard" onClick={() => onClick(b)}>
             <div className="bchdr">
@@ -815,9 +815,9 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
                 <div className="hgreet">Good evening</div>
                 <div className="htitle">Find your next <em>sound</em></div>
                 <div className="hstats">
-                    <div><span className="stn">24</span><span className="stl">Near you</span></div>
-                    <div><span className="stn">8</span><span className="stl">Online now</span></div>
-                    <div><span className="stn">{shows.length}</span><span className="stl">Shows this month</span></div>
+                    <div><span className="stn">{musicians.length}</span><span className="stl">Musicians</span></div>
+                    <div><span className="stn">{bands.length}</span><span className="stl">Bands</span></div>
+                    <div><span className="stn">{events.length}</span><span className="stl">Events</span></div>
                 </div>
             </div>
 
@@ -1071,7 +1071,7 @@ function Events({ events, onJoin, minor, onAdd }) {
                 <div className="hgreet">Grand Junction, CO</div>
                 <div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Musician Events & <em>Jams</em></div>
             </div>
-            <div className="sh"><div className="st">April 2026</div></div>
+            <div className="sh"><div className="st">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</div></div>
             <div className="chips">
                 {["All", "Open Mic", "Jam", "Gig", "All Ages"].map(x => (
                     <div key={x} className={`chip${f === x ? " on" : ""}`} onClick={() => setF(x)}>{x}</div>
@@ -1868,8 +1868,12 @@ function AgeGate({ onSelect }) {
 }
 
 export default function App({ user, profile }) {
-    const [ageSet, setAgeSet] = useState(false);
-    const [minor, setMinor] = useState(false);
+    const [ageSet, setAgeSet] = useState(() => {
+        try { return !!localStorage.getItem("ageVerified"); } catch { return false; }
+    });
+    const [minor, setMinor] = useState(() => {
+        try { return localStorage.getItem("ageVerified") === "minor"; } catch { return false; }
+    });
     const [tab, setTab] = useState("home");
     const [filter, setFilter] = useState("All");
     const [events, setEvents] = useState([]);
@@ -2184,7 +2188,11 @@ export default function App({ user, profile }) {
         return (
             <>
                 <style>{S}</style>
-                <AgeGate onSelect={m => { setMinor(m); setAgeSet(true); }} />
+                <AgeGate onSelect={m => {
+                    try { localStorage.setItem("ageVerified", m ? "minor" : "adult"); } catch { }
+                    setMinor(m);
+                    setAgeSet(true);
+                }} />
             </>
         );
     }
@@ -2346,7 +2354,7 @@ export default function App({ user, profile }) {
                         }}
                     />
                 )}
-                
+
                 {applyingGig && (
                     <div className="ov" onClick={() => setApplyingGig(null)}>
                         <div className="mod" onClick={e => e.stopPropagation()}>
