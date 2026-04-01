@@ -436,35 +436,19 @@ function VenueCard({ v }) {
 function LiveMusic({ shows, setShows }) {
     const [sub, setSub] = useState("tonight");
     const [gf, setGf] = useState("All");
-
-    const toggleInt = id =>
-        setShows(p =>
-            p.map(s =>
-                s.id === id
-                    ? {
-                        ...s,
-                        iMe: !s.iMe,
-                        interested: s.interested + (s.iMe ? -1 : 1),
-                    }
-                    : s
-            )
-        );
-
-    const upcoming = shows.filter(
-        s => gf === "All" || s.genres.includes(gf)
-    );
-
     const [realVenues, setRealVenues] = useState(VENUES);
+    const tonight = shows.find(s => s.tonight);
+    const toggleInt = id => setShows(p => p.map(s => s.id === id ? { ...s, iMe: !s.iMe, interested: s.interested + (s.iMe ? -1 : 1) } : s));
+    const upcoming = shows.filter(s => gf === "All" || s.genres.includes(gf));
 
     useEffect(() => {
         const fetchVenues = async () => {
             try {
                 const { collection, getDocs } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
-
                 const snap = await getDocs(collection(db, "venues"));
                 if (snap.docs.length > 0) {
-                    const fetched = snap.docs.map(d => ({
+                    setRealVenues(snap.docs.map(d => ({
                         id: d.id,
                         emoji: d.data().emoji || "🏢",
                         name: d.data().name,
@@ -473,92 +457,93 @@ function LiveMusic({ shows, setShows }) {
                         genres: d.data().genres || [],
                         shows: 0,
                         followers: 0,
-                    }));
-                    setRealVenues(fetched);
+                    })));
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         };
-
         fetchVenues();
     }, []);
 
     return (
-        <>
-            {sub === "upcoming" && (
-                <div style={{ paddingTop: 8 }}>
-                    <div className="chips">
-                        {["All", "Blues", "Jazz", "Rock", "Americana", "Folk", "Acoustic"].map(g => (
-                            <div
-                                key={g}
-                                className={`chip${gf === g ? " on" : ""}`}
-                                onClick={() => setGf(g)}
-                            >
-                                {g}
+        <div className="pg">
+            <div className="hero" style={{ padding: "20px 20px 16px" }}>
+                <div className="hgreet">Grand Junction, CO</div>
+                <div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Live Music & <em>Shows</em></div>
+            </div>
+            <div className="trow">
+                {[["tonight", "Tonight"], ["upcoming", "Upcoming"], ["venues", "Venues"]].map(([id, l]) => (
+                    <div key={id} className={`ti${sub === id ? " on" : ""}`} onClick={() => setSub(id)}>{l}</div>
+                ))}
+            </div>
+
+            {sub === "tonight" && (
+                <div>
+                    {tonight ? (
+                        <>
+                            <div className="lm-feat">
+                                <div className="lm-feat-inner">
+                                    <div className="lm-feat-top">
+                                        <div className="live-dot" />
+                                        <span className="lm-feat-badge">Live Tonight</span>
+                                    </div>
+                                    <div className="lm-feat-title">{tonight.name}</div>
+                                    <div className="lm-feat-venue">📍 {tonight.venue}</div>
+                                    <div className="lm-feat-pills">
+                                        <span className="lm-pill lm-pill-t">🕐 {tonight.time}</span>
+                                        <span className="lm-pill lm-pill-c">{tonight.cover === "Free" ? "🆓 Free" : `🎟 ${tonight.cover}`}</span>
+                                        <span className="lm-pill lm-pill-a">{tonight.allAges ? "✅ All Ages" : "🔞 18+"}</span>
+                                        {tonight.genres.map(g => <span key={g} className="lm-pill lm-pill-g">{g}</span>)}
+                                    </div>
+                                    <div className="lm-feat-band">
+                                        <div className="lm-bavs">{tonight.band.members.map((m, i) => <div key={i} className="lm-bav" style={{ background: ["#3a1a08", "#1a2a08", "#08182a"][i % 3] }}>{m}</div>)}</div>
+                                        <div className="lm-binfo">
+                                            <span className="lm-bnm">{tonight.band.name}</span>
+                                            {tonight.band.appBand && <span style={{ fontSize: 10, color: "var(--al)", marginLeft: 6, background: "rgba(230,168,74,.15)", padding: "1px 6px", borderRadius: 6 }}>on app</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="lm-feat-bot">
+                                    <span style={{ fontSize: 12, color: "var(--muted)" }}>{tonight.interested} people interested</span>
+                                    <button className={`lm-int-btn${tonight.iMe ? " on" : ""}`} onClick={() => toggleInt(tonight.id)}>{tonight.iMe ? "✓ Interested" : "I'm Interested"}</button>
+                                </div>
                             </div>
-                        ))}
-                    </div>
-
-                    {upcoming.map(s => (
-                        <ShowCard key={s.id} show={s} onInt={toggleInt} />
-                    ))}
-
-                    {upcoming.length === 0 && (
-                        <div className="es">
-                            <div className="ei">🎵</div>
-                            <div className="et">No shows found</div>
-                            <div className="ed">Try a different genre filter</div>
+                            <div className="sh"><div className="st">Also This Week</div></div>
+                            {shows.filter(s => !s.tonight).slice(0, 3).map(s => <ShowCard key={s.id} show={s} onInt={toggleInt} />)}
+                        </>
+                    ) : (
+                        <div style={{ margin: "16px 20px", padding: 30, background: "#fff", borderRadius: 14, border: "1px solid var(--border)", textAlign: "center" }}>
+                            <div style={{ fontSize: 40, marginBottom: 10 }}>🎸</div>
+                            <div style={{ fontFamily: "Playfair Display,serif", fontSize: 16, marginBottom: 6 }}>No shows tonight</div>
+                            <div style={{ fontSize: 12, color: "var(--muted)" }}>Check Upcoming for this weekend</div>
                         </div>
                     )}
                 </div>
             )}
 
+            {sub === "upcoming" && (
+                <div style={{ paddingTop: 8 }}>
+                    <div className="chips">
+                        {["All", "Blues", "Jazz", "Rock", "Americana", "Folk", "Acoustic"].map(g => (
+                            <div key={g} className={`chip${gf === g ? " on" : ""}`} onClick={() => setGf(g)}>{g}</div>
+                        ))}
+                    </div>
+                    {upcoming.map(s => <ShowCard key={s.id} show={s} onInt={toggleInt} />)}
+                    {upcoming.length === 0 && <div className="es"><div className="ei">🎵</div><div className="et">No shows found</div><div className="ed">Try a different genre filter</div></div>}
+                </div>
+            )}
+
             {sub === "venues" && (
                 <div style={{ paddingTop: 12 }}>
-                    <div
-                        style={{
-                            padding: "0 20px 10px",
-                            fontSize: 12,
-                            color: "var(--muted)",
-                        }}
-                    >
-                        {realVenues.length} venues with regular music nights
-                    </div>
-
-                    {realVenues.map(v => (
-                        <VenueCard key={v.id} v={v} />
-                    ))}
-
-                    <div
-                        style={{
-                            margin: "0 20px 16px",
-                            padding: 16,
-                            background: "#fff",
-                            borderRadius: 12,
-                            border: "2px dashed var(--border)",
-                            textAlign: "center",
-                            cursor: "pointer",
-                        }}
-                    >
+                    <div style={{ padding: "0 20px 10px", fontSize: 12, color: "var(--muted)" }}>{realVenues.length} venues with regular music nights</div>
+                    {realVenues.map(v => <VenueCard key={v.id} v={v} />)}
+                    <div style={{ margin: "0 20px 16px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }}>
                         <div style={{ fontSize: 24, marginBottom: 6 }}>🏢</div>
-                        <div
-                            style={{
-                                fontFamily: "Playfair Display,serif",
-                                fontSize: 15,
-                                color: "var(--ink)",
-                                marginBottom: 3,
-                            }}
-                        >
-                            Add Your Venue
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                            List your music nights · reach local musicians
-                        </div>
+                        <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Add Your Venue</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)" }}>List your music nights · reach local musicians</div>
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }
 
@@ -1442,8 +1427,8 @@ function ManageBandModal({ b, onClose, onSave }) {
         try {
             const { doc, updateDoc } = await import("firebase/firestore");
             const { db } = await import("../../lib/firebase");
-            const updated = { ...b, name: name.trim(), desc: desc.trim(), genres };
-            await updateDoc(doc(db, "bands", b.id), { name: name.trim(), desc: desc.trim(), genres });
+            const updated = { ...b, name: name.trim(), desc: desc.trim(), genres, members };
+            await updateDoc(doc(db, "bands", b.id), { name: name.trim(), desc: desc.trim(), genres, members });
             onSave(updated);
             onClose();
         } catch (e) { alert(e.message); }

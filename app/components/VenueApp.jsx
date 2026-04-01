@@ -160,7 +160,6 @@ function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
     const [applications, setApplications] = useState([]);
     const [loadingApps, setLoadingApps] = useState(false);
     const openGigs = gigOpenings.filter(g => g.status === "open");
-    const pendingApps = gigOpenings.reduce((n, g) => n + (g.applications?.length || 0), 0);
 
     const openGigDetail = async gig => {
         setViewingGig(gig);
@@ -176,13 +175,31 @@ function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
 
     const updateStatus = async (appId, status) => {
         try {
-            const { doc, updateDoc } = await import("firebase/firestore");
+            const { doc, updateDoc, collection, addDoc } = await import("firebase/firestore");
             const { db } = await import("../../lib/firebase");
             await updateDoc(doc(db, "gigOpenings", viewingGig.id, "applications", appId), { status });
             setApplications(p => p.map(a => a.appId === appId ? { ...a, status } : a));
             if (status === "accepted") {
                 await updateDoc(doc(db, "gigOpenings", viewingGig.id), { status: "booked" });
                 setViewingGig(v => ({ ...v, status: "booked" }));
+                // create a show in the events collection
+                const acceptedApp = applications.find(a => a.appId === appId);
+                await addDoc(collection(db, "events"), {
+                    name: acceptedApp?.bandName || "Live Show",
+                    venue: viewingGig.venueName,
+                    month: viewingGig.month,
+                    day: viewingGig.day,
+                    dow: viewingGig.dow,
+                    type: "gig",
+                    allAges: viewingGig.allAges || false,
+                    slots: 0,
+                    going: [],
+                    joined: false,
+                    pay: viewingGig.pay || "",
+                    createdAt: new Date().toISOString(),
+                    addedBy: "venue",
+                    fromGigId: viewingGig.id,
+                });
             }
         } catch (e) { alert(e.message); }
     };
