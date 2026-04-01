@@ -1412,6 +1412,7 @@ function MModal({ m, onClose, minor, onMsg }) {
         </div>
     );
 }
+
 function ManageBandModal({ b, onClose, onSave }) {
     const [name, setName] = useState(b.name);
     const [desc, setDesc] = useState(b.desc || "");
@@ -1447,53 +1448,137 @@ function ManageBandModal({ b, onClose, onSave }) {
     };
 
     return (
-        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
-            <div className="mhnd" />
-            <div className="mtit">Manage Band</div>
-            <div className="fg">
-                <label className="fl">Band Name</label>
-                <input className="fi" value={name} onChange={e => setName(e.target.value)} />
-            </div>
-            <div className="fg">
-                <label className="fl">Genres</label>
-                <div className="cbg">
-                    {GENRES.map(g => (
-                        <div key={g} className={`cbl${genres.includes(g) ? " ck" : ""}`} onClick={() => toggleGenre(g)}>{g}</div>
+        <div className="ov" onClick={onClose}>
+            <div className="mod" onClick={(e) => e.stopPropagation()}>
+                <div className="mhnd" />
+                <div className="mtit">Manage Band</div>
+
+                <div className="fg">
+                    <label className="fl">Band Name</label>
+                    <input className="fi" value={name} onChange={(e) => setName(e.target.value)} />
+                </div>
+
+                <div className="fg">
+                    <label className="fl">Genres</label>
+                    <div className="cbg">
+                        {GENRES.map((g) => (
+                            <div
+                                key={g}
+                                className={`cbl${genres.includes(g) ? " ck" : ""}`}
+                                onClick={() => toggleGenre(g)}
+                            >
+                                {g}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="fg">
+                    <label className="fl">About</label>
+                    <textarea className="fta" value={desc} onChange={(e) => setDesc(e.target.value)} />
+                </div>
+
+                <div className="fg">
+                    <label className="fl">Roster</label>
+
+                    {members.map((m, i) => (
+                        <div
+                            key={i}
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                padding: "8px 0",
+                                borderBottom: "1px solid var(--warm)",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 8,
+                                    background: m.filled ? "#f0e6d3" : "#f5f5f5",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 16,
+                                    opacity: m.filled ? 1 : 0.4,
+                                }}
+                            >
+                                {m.filled ? m.emoji : "?"}
+                            </div>
+
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 13, fontWeight: 500 }}>
+                                    {m.filled ? m.name : "Open slot"}
+                                </div>
+                                <div style={{ fontSize: 11, color: "var(--amber)" }}>{m.role}</div>
+                            </div>
+
+                            {!m.filled && (
+                                <button
+                                    onClick={() => removeSlot(i)}
+                                    style={{
+                                        background: "#fce4ec",
+                                        color: "var(--rust)",
+                                        border: "1px solid #f48fb1",
+                                        borderRadius: 8,
+                                        padding: "4px 10px",
+                                        fontSize: 12,
+                                        cursor: "pointer",
+                                        fontFamily: "DM Sans,sans-serif",
+                                    }}
+                                >
+                                    Remove
+                                </button>
+                            )}
+                        </div>
                     ))}
+
+                    <div style={{ marginTop: 12 }}>
+                        <label className="fl">Add Open Slot</label>
+                        <div className="cbg">
+                            {["Guitar", "Bass", "Drums", "Keys", "Vocals", "Violin", "Sax", "Trumpet", "Other"].map(
+                                (inst) => (
+                                    <div
+                                        key={inst}
+                                        className="cbl"
+                                        onClick={async () => {
+                                            const updated = [
+                                                ...members,
+                                                { name: "Open", emoji: EMOJ[inst] || "🎵", role: inst, filled: false },
+                                            ];
+
+                                            try {
+                                                const { doc, updateDoc } = await import("firebase/firestore");
+                                                const { db } = await import("../../lib/firebase");
+                                                await updateDoc(doc(db, "bands", b.id), { members: updated });
+                                                setMembers(updated);
+                                                onSave({ ...b, members: updated });
+                                            } catch (e) {
+                                                alert(e.message);
+                                            }
+                                        }}
+                                    >
+                                        + {inst}
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                    <button className="btn1" style={{ flex: 1, padding: 14 }} onClick={save} disabled={saving}>
+                        {saving ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button className="btn2" style={{ padding: 14 }} onClick={onClose}>
+                        Cancel
+                    </button>
                 </div>
             </div>
-            <div className="fg">
-                <label className="fl">About</label>
-                <textarea className="fta" value={desc} onChange={e => setDesc(e.target.value)} />
-            </div>
-            <div className="fg">
-                <label className="fl">Roster</label>
-                {members.map((m, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--warm)" }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: m.filled ? "#f0e6d3" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, opacity: m.filled ? 1 : .4 }}>
-                            {m.filled ? m.emoji : "?"}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 500 }}>{m.filled ? m.name : "Open slot"}</div>
-                            <div style={{ fontSize: 11, color: "var(--amber)" }}>{m.role}</div>
-                        </div>
-                        {!m.filled && (
-                            <button onClick={() => removeSlot(i)} style={{ background: "#fce4ec", color: "var(--rust)", border: "1px solid #f48fb1", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: "DM Sans,sans-serif" }}>
-                                Remove
-                            </button>
-                        )}
-                    </div>
-                ))}
-            </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-                <button className="btn1" style={{ flex: 1, padding: 14 }} onClick={save} disabled={saving}>
-                    {saving ? "Saving..." : "Save Changes"}
-                </button>
-                <button className="btn2" style={{ padding: 14 }} onClick={onClose}>Cancel</button>
-            </div>
-        </div></div>
+        </div>
     );
-}
 
 function BModal({ b, onClose, musicians, onMsg }) {
     if (!b) return null;
