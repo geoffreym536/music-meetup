@@ -272,7 +272,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);}
 `;
 
 const INIT_SHOWS = [
-    { id: 1, name: "Patchwork Sound", venue: "The Rabbit Hole Bar", month: "APR", day: "04", dow: "FRI", time: "9:00 PM", cover: "$5", allAges: false, genres: ["Blues", "Rock"], band: { name: "Patchwork Sound", members: ["🎸", "🎵", "🎹"], appBand: true }, interested: 12, tonight: true, iMe: false },
+    { id: 1, name: "The Sound", venue: "The Rabbit Hole Bar", month: "APR", day: "04", dow: "FRI", time: "9:00 PM", cover: "$5", allAges: false, genres: ["Blues", "Rock"], band: { name: "Patchwork Sound", members: ["🎸", "🎵", "🎹"], appBand: true }, interested: 12, tonight: true, iMe: false },
     { id: 2, name: "Mesa Verde Jazz Collective", venue: "Mesa Verde Coffee Co.", month: "APR", day: "06", dow: "SUN", time: "6:00 PM", cover: "Free", allAges: true, genres: ["Jazz", "Soul"], band: { name: "Mesa Verde Jazz", members: ["🥁", "🎹", "🎷"], appBand: true }, interested: 8, tonight: false, iMe: false },
     { id: 3, name: "The Copper Rails", venue: "Palisade Brewery", month: "APR", day: "11", dow: "FRI", time: "8:00 PM", cover: "$8", allAges: false, genres: ["Americana", "Country"], band: { name: "The Copper Rails", members: ["🎸", "🎻"], appBand: true }, interested: 19, tonight: false, iMe: false },
     { id: 4, name: "Grand Valley Bluegrass Night", venue: "Avalon Theatre", month: "APR", day: "12", dow: "SAT", time: "7:30 PM", cover: "$15", allAges: true, genres: ["Bluegrass", "Folk"], band: { name: "Various Artists", members: ["🎸", "🎻", "🥁"], appBand: false }, interested: 34, tonight: false, iMe: false },
