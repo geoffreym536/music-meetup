@@ -1579,6 +1579,7 @@ function ManageBandModal({ b, onClose, onSave }) {
             </div>
         </div>
     );
+}
 
 function BModal({ b, onClose, musicians, onMsg }) {
     if (!b) return null;
