@@ -1712,7 +1712,54 @@ function ManageBandModal({ b, onClose, onSave }) {
     );
 }
 
-function BModal({ b, onClose, musicians, onMsg }) {
+function BandApplyModal({ b, userProfile, onClose, onSubmit }) {
+    const [message, setMessage] = useState(
+        `Hey! I saw ${b.name} is looking for a ${b.members?.find(m => !m.filled)?.role || "musician"}. I'd love to join — here's a bit about me:`
+    );
+    const [loading, setLoading] = useState(false);
+
+    const submit = async () => {
+        if (!message.trim()) return;
+        setLoading(true);
+        try {
+            await onSubmit(message.trim());
+            onClose();
+        } catch (e) { alert(e.message); }
+        setLoading(false);
+    };
+
+    return (
+        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
+            <div className="mhnd" />
+            <div className="mtit">Apply to Join {b.name}</div>
+            <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+                <div style={{ fontFamily: "Playfair Display,serif", fontSize: 16, color: "var(--parchment)", marginBottom: 4 }}>{b.emoji} {b.name}</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {(b.members || []).filter(m => !m.filled).map((m, i) => (
+                        <span key={i} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "rgba(230,168,74,.15)", color: "var(--al)", border: "1px solid rgba(230,168,74,.25)" }}>
+                            {m.role} needed
+                        </span>
+                    ))}
+                </div>
+            </div>
+            <div className="fg">
+                <label className="fl">Your Message</label>
+                <textarea className="fta" style={{ minHeight: 100 }} value={message} onChange={e => setMessage(e.target.value)} />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>
+                This will open a direct message conversation with the band leader.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn1" style={{ flex: 1, padding: 14 }} onClick={submit} disabled={loading || !message.trim()}>
+                    {loading ? "Sending..." : "Send Application"}
+                </button>
+                <button className="btn2" style={{ padding: 14 }} onClick={onClose}>Cancel</button>
+            </div>
+        </div></div>
+    );
+}
+
+function BModal({ b, onClose, musicians, onMsg, onApplyToJoin, onMsgBand }) {
     if (!b) return null;
 
     return (
@@ -1793,8 +1840,8 @@ function BModal({ b, onClose, musicians, onMsg }) {
 
                 {!b.isMyBand && (b.members || []).some(m => !m.filled) && (
                     <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                        <button className="btn1" style={{ flex: 1 }}>🎵 Apply to Join</button>
-                        <button className="btn1" style={{ flex: 1, background: "var(--sage)" }}>💬 Message Band</button>
+                        <button className="btn1" style={{ flex: 1 }} onClick={() => onApplyToJoin && onApplyToJoin(b)}>🎵 Apply to Join</button>
+                        <button className="btn1" style={{ flex: 1, background: "var(--sage)" }} onClick={() => onMsgBand && onMsgBand(b)}>💬 Message Band</button>
                     </div>
                 )}
 
@@ -1844,7 +1891,7 @@ export default function App({ user, profile }) {
     const [editLooking, setEditLooking] = useState(profile?.looking || []);
     const [editAbout, setEditAbout] = useState(profile?.about || "");
     const [savingProfile, setSavingProfile] = useState(false);
-
+    const [applyingToBand, setApplyingToBand] = useState(null);
     const [applyingGig, setApplyingGig] = useState(null);
     const [realMusicians, setRealMusicians] = useState([]);
     const [gigOpenings, setGigOpenings] = useState([]);
@@ -2039,6 +2086,51 @@ export default function App({ user, profile }) {
         setTab("messages");
     };
 
+    const msgBandLeader = async (band, introMessage) => {
+        if (!band.createdBy) return;
+        const convId = getConvId(user.uid, band.createdBy);
+        try {
+            const { doc, setDoc, addDoc, collection, updateDoc } = await import("firebase/firestore");
+            const { db } = await import("../../lib/firebase");
+            await setDoc(doc(db, "conversations", convId), {
+                participants: { [user.uid]: true, [band.createdBy]: true },
+                participantNames: { [user.uid]: currentProfile?.name || "Me", [band.createdBy]: band.name },
+                participantEmojis: { [user.uid]: currentProfile?.emoji || "🎵", [band.createdBy]: band.emoji || "🎵" },
+                lastMessage: introMessage || "",
+                updatedAt: new Date().toISOString(),
+            }, { merge: true });
+            if (introMessage) {
+                const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                await addDoc(collection(db, "conversations", convId, "messages"), {
+                    from: user.uid,
+                    text: introMessage,
+                    time,
+                    type: "text",
+                    createdAt: new Date().toISOString(),
+                });
+                await updateDoc(doc(db, "conversations", convId), {
+                    lastMessage: introMessage,
+                    updatedAt: new Date().toISOString(),
+                });
+            }
+            const bandLeader = realMusicians.find(m => m.id === band.createdBy) || {
+                id: band.createdBy,
+                name: band.name,
+                emoji: band.emoji || "🎵",
+                bg: "#f0e6d3",
+                instrument: "",
+                online: false,
+            };
+            const nc = { id: convId, mid: band.createdBy, musician: bandLeader, unread: false, messages: introMessage ? [{ id: Date.now(), from: "me", text: introMessage, time: "Just now", type: "text" }] : [] };
+            setConvs(p => {
+                const exists = p.find(c => c.id === convId);
+                return exists ? p : [...p, nc];
+            });
+            setConvId(convId);
+            setTab("messages");
+        } catch (e) { alert(e.message); }
+    };
+
     const sendMsg = async (cid, txt) => {
         const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         setConvs(p => p.map(c => c.id === cid ? { ...c, messages: [...c.messages, { id: Date.now(), from: "me", text: txt, time, type: "text" }] } : c));
@@ -2194,6 +2286,8 @@ export default function App({ user, profile }) {
                     onClose={() => setSelB(null)}
                     musicians={realMusicians}
                     onMsg={m => setSelM(m)}
+                    onApplyToJoin={b => { setSelB(null); setApplyingToBand(b); }}
+                    onMsgBand={b => { setSelB(null); msgBandLeader(b, null); }}
                 />
 
                 {showAddEv && (
@@ -2240,6 +2334,19 @@ export default function App({ user, profile }) {
                     />
                 )}
 
+                {applyingToBand && (
+                    <BandApplyModal
+                        b={applyingToBand}
+                        userProfile={currentProfile}
+                        onClose={() => setApplyingToBand(null)}
+                        onSubmit={async message => {
+                            await msgBandLeader(applyingToBand, message);
+                            setApplyingToBand(null);
+                            doToast("Application sent to band leader!");
+                        }}
+                    />
+                )}
+                
                 {applyingGig && (
                     <div className="ov" onClick={() => setApplyingGig(null)}>
                         <div className="mod" onClick={e => e.stopPropagation()}>
