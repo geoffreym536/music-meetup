@@ -269,6 +269,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);}
 .venue-stats{display:flex;gap:20px;}
 .vstat-n{font-family:'Playfair Display',serif;font-size:18px;color:var(--amber);display:block;}
 .vstat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 20px;}
+.mgrid .mcard{min-width:0;}
+.mback{display:flex;align-items:center;gap:8px;padding:14px 20px 0;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--amber);}
 .scene-feed{padding:12px 20px 0;}
 .scene-item{background:#fff;border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;}
 .scene-ico{width:44px;height:44px;border-radius:10px;background:var(--warm);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
@@ -942,14 +945,37 @@ function Inbox({ convs, onOpen }) {
     );
 }
 
-function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFilter, minor, goLive, onManage, onApplyBand, userId }) {
+function Musicians({ musicians, onM, minor, onBack }) {
+    const [f, setF] = useState("All");
+    const shown = musicians.filter(m => f === "All" || m.instrument === f);
+    return (
+        <div className="pg">
+            <div className="hero" style={{ padding: "20px 20px 16px" }}>
+                <button className="mback" onClick={onBack}>← Back</button>
+                <div className="htitle" style={{ fontSize: 22, marginBottom: 0, marginTop: 8 }}>Musicians <em>Nearby</em></div>
+            </div>
+            <div className="chips" style={{ paddingTop: 12 }}>
+                {["All", "Guitar", "Drums", "Keys", "Vocals", "Bass", "Horns", "Strings"].map(x => (
+                    <div key={x} className={`chip${f === x ? " on" : ""}`} onClick={() => setF(x)}>{x}</div>
+                ))}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", padding: "0 20px 12px" }}>{shown.length} musician{shown.length !== 1 ? "s" : ""} found</div>
+            {shown.length === 0
+                ? <div className="es"><div className="ei">🎵</div><div className="et">No musicians found</div><div className="ed">Try a different instrument filter</div></div>
+                : <div className="mgrid">{shown.map(m => <MCard key={m.id} m={m} onClick={onM} minor={minor} />)}</div>
+            }
+        </div>
+    );
+}
+
+function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFilter, minor, goLive, onManage, onApplyBand, userId, profile, onSeeAllMusicians }) {
     ``
     const tonight = shows.find(s => s.tonight);
     return (
         <div className="pg">
             {minor && <div className="mmbar"><span>🛡️</span><span className="mmtxt">Safe Mode active · Some content restricted for under-18 users</span></div>}
             <div className="hero">
-                <div className="hgreet">{(() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })()}</div>
+                <div className="hgreet">{(() => { const h = new Date().getHours(); const base = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; const first = profile?.name?.trim().split(" ")[0]; return first ? `${base}, ${first}` : base; })()}</div>
                 <div className="htitle">Find your next <em>sound</em></div>
                 <div className="hstats">
                     <div><span className="stn">{musicians.length}</span><span className="stl">Musicians</span></div>
@@ -976,7 +1002,7 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
                 </>
             )}
 
-            <div className="sh"><div className="st">Musicians Nearby</div><button className="sl">See all</button></div>
+            <div className="sh"><div className="st">Musicians Nearby</div><button className="sl" onClick={onSeeAllMusicians}>See all</button></div>
             <div className="chips">
                 {["All", "Guitar", "Drums", "Keys", "Vocals", "Bass"].map(f => (
                     <div key={f} className={`chip${filter === f ? " on" : ""}`} onClick={() => setFilter(f)}>{f}</div>
@@ -1898,7 +1924,7 @@ function BandApplyModal({ b, userProfile, onClose, onSubmit }) {
     );
 }
 
-function BModal({ b, onClose, musicians, onMsg, onApplyToJoin, onMsgBand }) {
+function BModal({ b, onClose, musicians, onMsg, onApplyToJoin, onMsgBand, onManage }) {
     if (!b) return null;
 
     return (
@@ -1984,7 +2010,7 @@ function BModal({ b, onClose, musicians, onMsg, onApplyToJoin, onMsgBand }) {
                     </div>
                 )}
 
-                {b.isMyBand && <button className="btn1" style={{ width: "100%", marginBottom: 10 }}>⚙️ Manage Band Profile</button>}
+                {b.isMyBand && <button className="btn1" style={{ width: "100%", marginBottom: 10 }} onClick={() => onManage && onManage(b)}>⚙️ Manage Band Profile</button>}
 
                 <button className="btn2" style={{ width: "100%", textAlign: "center" }} onClick={onClose}>Close</button>
             </div>
@@ -2419,7 +2445,18 @@ export default function App({ user, profile }) {
                             onManage={setManagingBand}
                             onApplyBand={setApplyingToBand}
                             userId={user.uid}
+                            profile={currentProfile}
+                            onSeeAllMusicians={() => setTab("musicians")}
                       />
+                    )}
+
+                    {tab === "musicians" && (
+                        <Musicians
+                            musicians={realMusicians}
+                            onM={setSelM}
+                            minor={minor}
+                            onBack={() => setTab("home")}
+                        />
                     )}
 
                     {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
@@ -2478,6 +2515,7 @@ export default function App({ user, profile }) {
                     onMsg={m => setSelM(m)}
                     onApplyToJoin={b => { setSelB(null); setApplyingToBand(b); }}
                     onMsgBand={b => { setSelB(null); msgBandLeader(b, null); }}
+                    onManage={b => { setSelB(null); setManagingBand(b); }}
                 />
 
                 {showAddEv && (
