@@ -454,7 +454,7 @@ function timeAgo(ts) {
     return days === 1 ? "1 day ago" : `${days} days ago`;
 }
 
-function LiveMusic({ shows, setShows }) {
+function LiveMusic({ shows, setShows, onTabChange, onBandClick }) {
     const [sub, setSub] = useState("tonight");
     const [gf, setGf] = useState("All");
     const [realVenues, setRealVenues] = useState(VENUES);
@@ -514,6 +514,7 @@ function LiveMusic({ shows, setShows }) {
                         title: b.name || "New Band",
                         sub: (b.genres || []).join(" · "),
                         createdAt: b.createdAt,
+                        rawBand: { ...b, id: d.id },
                     });
                 });
 
@@ -561,16 +562,24 @@ function LiveMusic({ shows, setShows }) {
             try {
                 const { collection, getDocs } = await import("firebase/firestore");
                 const { db } = await import("../../lib/firebase");
-                const snap = await getDocs(collection(db, "venues"));
-                if (snap.docs.length > 0) {
-                    setRealVenues(snap.docs.map(d => ({
+                const [venueSnap, eventSnap] = await Promise.all([
+                    getDocs(collection(db, "venues")),
+                    getDocs(collection(db, "events")),
+                ]);
+                if (venueSnap.docs.length > 0) {
+                    const eventsByVenue = {};
+                    eventSnap.docs.forEach(d => {
+                        const uid = d.data().addedBy;
+                        if (uid) eventsByVenue[uid] = (eventsByVenue[uid] || 0) + 1;
+                    });
+                    setRealVenues(venueSnap.docs.map(d => ({
                         id: d.id,
                         emoji: d.data().emoji || "🏢",
                         name: d.data().name,
                         addr: d.data().address,
                         nights: d.data().nights || [],
                         genres: d.data().genres || [],
-                        shows: 0,
+                        shows: eventsByVenue[d.id] || 0,
                         followers: 0,
                     })));
                 }
@@ -669,17 +678,31 @@ function LiveMusic({ shows, setShows }) {
                         {!sceneLoading && sceneFeed.length === 0 && (
                             <div className="es"><div className="ei">🎵</div><div className="et">Nothing yet</div><div className="ed">Activity will appear as the scene grows</div></div>
                         )}
-                        {sceneFeed.map(item => (
-                            <div key={item.id} className="scene-item">
-                                <div className="scene-ico">{item.emoji}</div>
-                                <div className="scene-body">
-                                    <div className="scene-kind">{item.kind}</div>
-                                    <div className="scene-title">{item.title}</div>
-                                    {item.sub && <div className="scene-sub">{item.sub}</div>}
-                                    <div className="scene-time">{timeAgo(item.createdAt)}</div>
+                        {sceneFeed.map(item => {
+                            const handleClick = () => {
+                                if (item.kind === "confirmed show") onTabChange && onTabChange("events");
+                                else if (item.kind === "new band created") onBandClick && onBandClick(item.rawBand);
+                                else if (item.kind === "gig opening posted") onTabChange && onTabChange("bands");
+                                else if (item.kind === "new venue joined") setSub("venues");
+                            };
+                            const clickable = ["confirmed show", "new band created", "gig opening posted", "new venue joined"].includes(item.kind);
+                            return (
+                                <div
+                                    key={item.id}
+                                    className="scene-item"
+                                    onClick={clickable ? handleClick : undefined}
+                                    style={{ cursor: clickable ? "pointer" : "default" }}
+                                >
+                                    <div className="scene-ico">{item.emoji}</div>
+                                    <div className="scene-body">
+                                        <div className="scene-kind">{item.kind}</div>
+                                        <div className="scene-title">{item.title}</div>
+                                        {item.sub && <div className="scene-sub">{item.sub}</div>}
+                                        <div className="scene-time">{timeAgo(item.createdAt)}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -2555,7 +2578,7 @@ export default function App({ user, profile }) {
                         />
                     )}
 
-                    {tab === "live" && <LiveMusic shows={shows} setShows={setShows} />}
+                    {tab === "live" && <LiveMusic shows={shows} setShows={setShows} onTabChange={setTab} onBandClick={b => setSelB(b)} />}
 
                     {tab === "bands" && (
                         <Bands

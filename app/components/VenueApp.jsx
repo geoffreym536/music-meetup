@@ -77,6 +77,7 @@ export default function VenueApp({ user, profile }) {
     const [tab, setTab] = useState("dashboard");
     const [bands, setBands] = useState([]);
     const [gigOpenings, setGigOpenings] = useState([]);
+    const [venueEvents, setVenueEvents] = useState([]);
     const [showAddGig, setShowAddGig] = useState(false);
     const [showPostEvent, setShowPostEvent] = useState(false);
     const [toast, setToast] = useState(null);
@@ -107,6 +108,18 @@ export default function VenueApp({ user, profile }) {
         fetchGigs();
     }, []);
 
+    useEffect(() => {
+        const fetchVenueEvents = async () => {
+            try {
+                const { collection, getDocs, query, where } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const snap = await getDocs(query(collection(db, "events"), where("addedBy", "==", user.uid)));
+                setVenueEvents(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+            } catch (e) { console.error(e); }
+        };
+        fetchVenueEvents();
+    }, []);
+
     const signOut = () => import("firebase/auth").then(a => import("../../lib/firebase").then(m => a.signOut(m.auth)));
 
     return (
@@ -125,7 +138,7 @@ export default function VenueApp({ user, profile }) {
                 <div style={{ display: tab === "messages" ? "none" : "block" }}>
                     {tab === "dashboard" && <VenueDashboard profile={profile} gigOpenings={gigOpenings} onAddGig={() => setShowAddGig(true)} onAddEvent={() => setShowPostEvent(true)} bands={bands} onDeleteGig={id => setGigOpenings(p => p.filter(g => g.id !== id))} />}
                     {tab === "bands" && <BandRoster bands={bands} venueProfile={profile} user={user} doToast={doToast} />}
-                    {tab === "gigs" && <GigOpenings gigOpenings={gigOpenings} onAdd={() => setShowAddGig(true)} />}
+                    {tab === "gigs" && <GigOpenings gigOpenings={gigOpenings} onAdd={() => setShowAddGig(true)} venueEvents={venueEvents} onDeleteEvent={id => setVenueEvents(p => p.filter(e => e.id !== id))} />}
                     {tab === "profile" && <VenueProfile profile={profile} onSignOut={signOut} />}
 
                     <nav className="vbnav">
@@ -403,7 +416,8 @@ function BandRoster({ bands, venueProfile, user, doToast }) {
     );
 }
 
-function GigOpenings({ gigOpenings, onAdd }) {
+function GigOpenings({ gigOpenings, onAdd, venueEvents, onDeleteEvent }) {
+    const TYPE_LABEL = { openmic: "Open Mic", jam: "Jam", gig: "Live Music" };
     return (
         <div className="vpg">
             <div className="vhero" style={{ padding: "20px 20px 16px" }}>
@@ -427,6 +441,33 @@ function GigOpenings({ gigOpenings, onAdd }) {
                     </div>
                 </div>
             ))}
+
+            {venueEvents?.length > 0 && (
+                <>
+                    <div className="vsh"><div className="vst">Posted Events</div></div>
+                    {venueEvents.map(ev => (
+                        <div key={ev.id} className="vcard" style={{ alignItems: "center" }}>
+                            <div className="vcardt" style={{ flex: 1 }}>
+                                <div className="vcardtitle">{ev.name}</div>
+                                <div className="vcardsub">📅 {ev.month} {ev.day} · {TYPE_LABEL[ev.type] || ev.type}{ev.time ? ` · ${ev.time}` : ""}</div>
+                            </div>
+                            <button
+                                style={{ background: "#fce4ec", color: "var(--rust)", border: "1px solid #f48fb1", borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontFamily: "DM Sans,sans-serif", flexShrink: 0 }}
+                                onClick={async () => {
+                                    try {
+                                        const { doc, deleteDoc } = await import("firebase/firestore");
+                                        const { db } = await import("../../lib/firebase");
+                                        await deleteDoc(doc(db, "events", ev.id));
+                                        onDeleteEvent(ev.id);
+                                    } catch (e) { alert(e.message); }
+                                }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    ))}
+                </>
+            )}
         </div>
     );
 }
