@@ -569,7 +569,7 @@ function MCard({ m, onClick, minor }) {
     );
 }
 
-function BCard({ b, onClick, onManage, meId }) {
+function BCard({ b, onClick, onManage, onApply, meId }) {
     const open = b.members.filter(m => !m.filled);
     const filled = b.members.filter(m => m.filled).length;
     const pct = Math.round((filled / b.members.length) * 100);
@@ -618,7 +618,7 @@ function BCard({ b, onClick, onManage, meId }) {
                     </button>
                 ) : (
                     <>
-                        <button className="btn1" style={{ fontSize: 13 }} onClick={e => e.stopPropagation()}>Apply to Join</button>
+                        <button className="btn1" style={{ fontSize: 13 }} onClick={e => { e.stopPropagation(); onApply && onApply(b); }}>Apply to Join</button>
                         <button className="btn2" style={{ fontSize: 13 }} onClick={e => e.stopPropagation()}>Message</button>
                     </>
                 )}
@@ -805,7 +805,7 @@ function Inbox({ convs, onOpen }) {
     );
 }
 
-function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFilter, minor, goLive, onManage, userId }) {
+function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFilter, minor, goLive, onManage, onApplyBand, userId }) {
     ``
     const tonight = shows.find(s => s.tonight);
     return (
@@ -859,6 +859,7 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
                         b={b}
                         onClick={onB}
                         onManage={onManage}
+                        onApply={onApplyBand}
                         meId={userId}
                     />
                 ))}
@@ -959,7 +960,7 @@ function MyApplications({ userId }) {
     );
 }
 
-function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId, appliedGigIds, onManage }) {
+function Bands({ bands, onB, onCreate, gigOpenings, onApply, onApplyBand, userId, appliedGigIds, onManage }) {
     const [tab, setTab] = useState("discover");
     const shown = tab === "mybands"
         ? bands.filter(b => b.isMyBand)
@@ -988,7 +989,7 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply, userId, appliedGigI
             <div style={{ height: 12 }} />
 
             {tab !== "gigs" && tab !== "applied" && shown.map(b => (
-                <BCard key={b.id} b={b} onClick={onB} onManage={onManage} meId={userId} />
+                <BCard key={b.id} b={b} onClick={onB} onManage={onManage} onApply={onApplyBand} meId={userId} />
             ))}
 
             {tab !== "gigs" && tab !== "applied" && (
@@ -1062,6 +1063,7 @@ function Events({ events, onJoin, minor, onAdd }) {
         (f === "Open Mic" && e.type === "openmic") ||
         (f === "Jam" && e.type === "jam") ||
         (f === "Gig" && e.type === "gig") ||
+        (f === "Shows" && e.type === "gig" && e.addedBy === "venue") ||
         (f === "All Ages" && e.allAges)
     );
 
@@ -1073,7 +1075,7 @@ function Events({ events, onJoin, minor, onAdd }) {
             </div>
             <div className="sh"><div className="st">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</div></div>
             <div className="chips">
-                {["All", "Open Mic", "Jam", "Gig", "All Ages"].map(x => (
+                {["All", "Open Mic", "Jam", "Gig", "Shows", "All Ages"].map(x => (
                     <div key={x} className={`chip${f === x ? " on" : ""}`} onClick={() => setF(x)}>{x}</div>
                 ))}
             </div>
@@ -1989,6 +1991,47 @@ export default function App({ user, profile }) {
     }, []);
 
     useEffect(() => {
+        const fetchVenueShows = async () => {
+            try {
+                const { collection, getDocs, query, where } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const snap = await getDocs(query(
+                    collection(db, "events"),
+                    where("addedBy", "==", "venue"),
+                    where("type", "==", "gig")
+                ));
+                if (snap.empty) return;
+                const today = new Date();
+                const todayMonth = MONS[today.getMonth()].toUpperCase();
+                const todayDay = String(today.getDate()).padStart(2, "0");
+                const fetched = snap.docs.map(d => {
+                    const ev = d.data();
+                    return {
+                        id: d.id,
+                        name: ev.name || "Untitled Show",
+                        venue: ev.venue || "",
+                        month: ev.month || "",
+                        day: ev.day || "",
+                        dow: ev.dow || "",
+                        time: ev.time || "TBD",
+                        cover: ev.cover || "TBD",
+                        allAges: ev.allAges ?? false,
+                        genres: ev.genres || [],
+                        band: ev.band || { name: "TBA", members: [], appBand: false },
+                        interested: ev.interested || 0,
+                        tonight: ev.month === todayMonth && ev.day === todayDay,
+                        iMe: false,
+                    };
+                });
+                setShows(fetched);
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        fetchVenueShows();
+    }, []);
+
+    useEffect(() => {
         const fetchBands = async () => {
             try {
                 const { collection, getDocs } = await import("firebase/firestore");
@@ -2237,6 +2280,7 @@ export default function App({ user, profile }) {
                             minor={minor}
                             goLive={() => setTab("live")}
                             onManage={setManagingBand}
+                            onApplyBand={setApplyingToBand}
                             userId={user.uid}
                       />
                     )}
@@ -2250,6 +2294,7 @@ export default function App({ user, profile }) {
                             onCreate={() => setShowCB(true)}
                             gigOpenings={gigOpenings}
                             onApply={setApplyingGig}
+                            onApplyBand={setApplyingToBand}
                             userId={user.uid}
                             appliedGigIds={appliedGigIds}
                             onManage={setManagingBand}
