@@ -78,6 +78,7 @@ export default function VenueApp({ user, profile }) {
     const [bands, setBands] = useState([]);
     const [gigOpenings, setGigOpenings] = useState([]);
     const [showAddGig, setShowAddGig] = useState(false);
+    const [showPostEvent, setShowPostEvent] = useState(false);
     const [toast, setToast] = useState(null);
 
     const doToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2600); };
@@ -122,7 +123,7 @@ export default function VenueApp({ user, profile }) {
                 </div>
 
                 <div style={{ display: tab === "messages" ? "none" : "block" }}>
-                    {tab === "dashboard" && <VenueDashboard profile={profile} gigOpenings={gigOpenings} onAddGig={() => setShowAddGig(true)} bands={bands} />}
+                    {tab === "dashboard" && <VenueDashboard profile={profile} gigOpenings={gigOpenings} onAddGig={() => setShowAddGig(true)} onAddEvent={() => setShowPostEvent(true)} bands={bands} onDeleteGig={id => setGigOpenings(p => p.filter(g => g.id !== id))} />}
                     {tab === "bands" && <BandRoster bands={bands} venueProfile={profile} user={user} doToast={doToast} />}
                     {tab === "gigs" && <GigOpenings gigOpenings={gigOpenings} onAdd={() => setShowAddGig(true)} />}
                     {tab === "profile" && <VenueProfile profile={profile} onSignOut={signOut} />}
@@ -136,29 +137,50 @@ export default function VenueApp({ user, profile }) {
                     </nav>
                 </div>
 
-                {showAddGig && <AddGigModal onClose={() => setShowAddGig(false)} onAdd={async d => {
+                {showAddGig && <AddGigModal onClose={() => setShowAddGig(false)} onAdd={async gigs => {
                     try {
                         const { collection, addDoc } = await import("firebase/firestore");
                         const { db } = await import("../../lib/firebase");
-                        const ref = await addDoc(collection(db, "gigOpenings"), {
-                            ...d, venueId: user.uid, venueName: profile.name,
-                            venueAddress: profile.address, status: "open",
-                            createdAt: new Date().toISOString(), applications: [],
-                        });
-                        setGigOpenings(p => [...p, { ...d, id: ref.id, venueId: user.uid, venueName: profile.name, status: "open", applications: [] }]);
-                        doToast("Gig opening posted!");
+                        const added = [];
+                        for (const d of gigs) {
+                            const ref = await addDoc(collection(db, "gigOpenings"), {
+                                ...d, venueId: user.uid, venueName: profile.name,
+                                venueAddress: profile.address, status: "open",
+                                createdAt: new Date().toISOString(), applications: [],
+                            });
+                            added.push({ ...d, id: ref.id, venueId: user.uid, venueName: profile.name, status: "open", applications: [] });
+                        }
+                        setGigOpenings(p => [...p, ...added]);
+                        doToast(gigs.length > 1 ? `${gigs.length} gig openings posted!` : "Gig opening posted!");
                     } catch (e) { alert(e.message); }
                     setShowAddGig(false);
+                }} />}
+
+                {showPostEvent && <PostEventModal onClose={() => setShowPostEvent(false)} onAdd={async d => {
+                    try {
+                        const { collection, addDoc } = await import("firebase/firestore");
+                        const { db } = await import("../../lib/firebase");
+                        await addDoc(collection(db, "events"), {
+                            ...d,
+                            venue: profile.name,
+                            addedBy: user.uid,
+                            createdAt: new Date().toISOString(),
+                            going: [], joined: false, slots: 0,
+                        });
+                        doToast("Event posted!");
+                    } catch (e) { alert(e.message); }
+                    setShowPostEvent(false);
                 }} />}
             </div>
         </>
     );
 }
 
-function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
+function VenueDashboard({ profile, gigOpenings, onAddGig, onAddEvent, bands, onDeleteGig }) {
     const [viewingGig, setViewingGig] = useState(null);
     const [applications, setApplications] = useState([]);
     const [loadingApps, setLoadingApps] = useState(false);
+    const [confirmDeleteGig, setConfirmDeleteGig] = useState(false);
     const openGigs = gigOpenings.filter(g => g.status === "open");
 
     const openGigDetail = async gig => {
@@ -206,11 +228,45 @@ function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
 
     if (viewingGig) return (
         <div className="vpg">
-            <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid var(--border)" }}>
-                <button onClick={() => setViewingGig(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--ink)" }}>‹</button>
-                <div style={{ fontFamily: "Playfair Display,serif", fontSize: 18 }}>{viewingGig.name}</div>
+            <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: confirmDeleteGig ? "none" : "1px solid var(--border)" }}>
+                <button onClick={() => { setViewingGig(null); setConfirmDeleteGig(false); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--ink)" }}>‹</button>
+                <div style={{ fontFamily: "Playfair Display,serif", fontSize: 18, flex: 1 }}>{viewingGig.name}</div>
                 <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 20, background: viewingGig.status === "booked" ? "#e8f5e9" : "#fef3e2", color: viewingGig.status === "booked" ? "var(--sage)" : "var(--amber)", border: `1px solid ${viewingGig.status === "booked" ? "#a5d6a7" : "#f5dba0"}` }}>{viewingGig.status}</span>
+                <button
+                    onClick={() => setConfirmDeleteGig(true)}
+                    style={{ background: "#fce4ec", color: "var(--rust)", border: "1px solid #f48fb1", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer", fontFamily: "DM Sans,sans-serif", whiteSpace: "nowrap" }}
+                >
+                    🗑 Delete
+                </button>
             </div>
+            {confirmDeleteGig && (
+                <div style={{ margin: "0 20px", padding: 14, background: "#fce4ec", border: "1px solid #f48fb1", borderBottom: "1px solid var(--border)", borderRadius: "0 0 10px 10px" }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--rust)", marginBottom: 10 }}>Are you sure? This cannot be undone.</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                            style={{ flex: 1, padding: "8px 0", background: "var(--rust)", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "DM Sans,sans-serif" }}
+                            onClick={async () => {
+                                try {
+                                    const { doc, deleteDoc } = await import("firebase/firestore");
+                                    const { db } = await import("../../lib/firebase");
+                                    await deleteDoc(doc(db, "gigOpenings", viewingGig.id));
+                                    onDeleteGig && onDeleteGig(viewingGig.id);
+                                    setViewingGig(null);
+                                    setConfirmDeleteGig(false);
+                                } catch (e) { alert(e.message); }
+                            }}
+                        >
+                            Confirm Delete
+                        </button>
+                        <button
+                            style={{ flex: 1, padding: "8px 0", background: "var(--warm)", color: "var(--ink)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: "DM Sans,sans-serif" }}
+                            onClick={() => setConfirmDeleteGig(false)}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
             <div style={{ padding: "12px 20px 4px", fontSize: 12, color: "var(--muted)" }}>
                 📅 {viewingGig.month} {viewingGig.day} · 💰 {viewingGig.pay || "Negotiable"}
             </div>
@@ -266,6 +322,7 @@ function VenueDashboard({ profile, gigOpenings, onAddGig, bands }) {
             <div className="vsh"><div className="vst">Quick Actions</div></div>
             <div className="brow">
                 <button className="vbtn1" onClick={onAddGig}>🎸 Post Gig Opening</button>
+                <button className="vbtn2" onClick={onAddEvent}>📅 Post Event</button>
             </div>
             <div className="vsh"><div className="vst">Your Gig Openings</div></div>
             {gigOpenings.length === 0 ? (
@@ -402,6 +459,64 @@ function VenueProfile({ profile, onSignOut }) {
     );
 }
 
+function PostEventModal({ onClose, onAdd }) {
+    const [name, setName] = useState("");
+    const [date, setDate] = useState("");
+    const [type, setType] = useState("openmic");
+    const [time, setTime] = useState("");
+    const [cover, setCover] = useState("");
+    const [allAges, setAllAges] = useState(true);
+    const [desc, setDesc] = useState("");
+
+    const MONS_A = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const DOWS_A = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+    const go = () => {
+        if (!name.trim() || !date) return;
+        const d = new Date(date + "T12:00:00");
+        onAdd({
+            name: name.trim(),
+            date,
+            month: MONS_A[d.getMonth()].toUpperCase(),
+            day: String(d.getDate()).padStart(2, "0"),
+            dow: DOWS_A[d.getDay()].toUpperCase(),
+            type,
+            time: time.trim() || "TBD",
+            cover: cover.trim() || "Free",
+            allAges,
+            desc: desc.trim(),
+        });
+    };
+
+    return (
+        <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
+            <div className="mhnd" /><div className="mtit">Post an Event</div>
+            <div className="fg"><label className="fl">Event Name *</label><input className="fi" placeholder="e.g. Wednesday Open Mic" value={name} onChange={e => setName(e.target.value)} /></div>
+            <div className="fg"><label className="fl">Date *</label><input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+            <div className="fg"><label className="fl">Type</label>
+                <div className="cbg">
+                    {[["openmic","🎤 Open Mic"],["jam","🥁 Jam Night"],["gig","🎸 Live Music"]].map(([v, l]) => (
+                        <div key={v} className={`cbl${type === v ? " ck" : ""}`} onClick={() => setType(v)}>{l}</div>
+                    ))}
+                </div>
+            </div>
+            <div className="fg"><label className="fl">Start Time</label><input className="fi" placeholder="e.g. 8:00 PM" value={time} onChange={e => setTime(e.target.value)} /></div>
+            <div className="fg"><label className="fl">Cover Charge</label><input className="fi" placeholder="e.g. Free or $5" value={cover} onChange={e => setCover(e.target.value)} /></div>
+            <div className="fg"><label className="fl">Age Policy</label>
+                <div className="cbg">
+                    <div className={`cbl${allAges ? " ck" : ""}`} onClick={() => setAllAges(true)}>✅ All Ages</div>
+                    <div className={`cbl${!allAges ? " ck" : ""}`} onClick={() => setAllAges(false)}>🔞 18+ Only</div>
+                </div>
+            </div>
+            <div className="fg"><label className="fl">Description</label><textarea className="fta" placeholder="What to expect, performers, vibe..." value={desc} onChange={e => setDesc(e.target.value)} /></div>
+            <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                <button className="vbtn1" style={{ flex: 1, padding: 14 }} onClick={go}>Post Event</button>
+                <button className="vbtn2" style={{ padding: 14 }} onClick={onClose}>Cancel</button>
+            </div>
+        </div></div>
+    );
+}
+
 function AddGigModal({ onClose, onAdd }) {
     const [name, setName] = useState("");
     const [date, setDate] = useState("");
@@ -410,27 +525,78 @@ function AddGigModal({ onClose, onAdd }) {
     const [allAges, setAllAges] = useState(false);
     const [genres, setGenres] = useState([]);
     const [notes, setNotes] = useState("");
+    const [recurring, setRecurring] = useState(false);
+    const [frequency, setFrequency] = useState("weekly");
+    const [occurrences, setOccurrences] = useState(4);
+
+    const MONS_A = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const DOWS_A = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+    const makeGig = d => ({
+        name: name.trim(),
+        date: d.toISOString().slice(0, 10),
+        month: MONS_A[d.getMonth()].toUpperCase(),
+        day: String(d.getDate()).padStart(2, "0"),
+        dow: DOWS_A[d.getDay()].toUpperCase(),
+        pay: pay.trim(), type, allAges, genres, notes: notes.trim(),
+    });
 
     const go = () => {
         if (!name.trim() || !date) return;
-        const d = new Date(date + "T12:00:00");
-        onAdd({
-            name: name.trim(), date,
-            month: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()].toUpperCase(),
-            day: String(d.getDate()).padStart(2, "0"),
-            dow: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()].toUpperCase(),
-            pay: pay.trim(), type, allAges, genres, notes: notes.trim(),
-        });
+        const base = new Date(date + "T12:00:00");
+        let gigs;
+        if (!recurring) {
+            gigs = [makeGig(base)];
+        } else {
+            const groupId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+            const count = Math.min(Math.max(occurrences, 1), 12);
+            gigs = Array.from({ length: count }, (_, i) => {
+                const d = new Date(base);
+                if (frequency === "weekly") d.setDate(d.getDate() + i * 7);
+                else if (frequency === "biweekly") d.setDate(d.getDate() + i * 14);
+                else d.setMonth(d.getMonth() + i);
+                return { ...makeGig(d), recurringGroupId: groupId };
+            });
+        }
+        onAdd(gigs);
     };
 
     return (
         <div className="ov" onClick={onClose}><div className="mod" onClick={e => e.stopPropagation()}>
             <div className="mhnd" /><div className="mtit">Post Gig Opening</div>
             <div className="fg"><label className="fl">Event Name *</label><input className="fi" placeholder="e.g. Friday Night Live" value={name} onChange={e => setName(e.target.value)} /></div>
-            <div className="frow">
-                <div className="fg"><label className="fl">Date *</label><input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-                <div className="fg"><label className="fl">Pay</label><input className="fi" placeholder="e.g. $200 + tips" value={pay} onChange={e => setPay(e.target.value)} /></div>
+            <div className="fg"><label className="fl">Date *</label><input className="fi" type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+            <div className="fg">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <label className="fl" style={{ margin: 0 }}>Recurring</label>
+                    <div
+                        onClick={() => setRecurring(p => !p)}
+                        style={{ width: 44, height: 24, borderRadius: 12, background: recurring ? "var(--amber)" : "var(--border)", cursor: "pointer", position: "relative", transition: "background .2s", flexShrink: 0 }}
+                    >
+                        <div style={{ position: "absolute", top: 3, left: recurring ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+                    </div>
+                </div>
+                {recurring && (
+                    <div style={{ marginTop: 12 }}>
+                        <label className="fl">Frequency</label>
+                        <div className="cbg" style={{ marginBottom: 12 }}>
+                            {[["weekly","Weekly"],["biweekly","Biweekly"],["monthly","Monthly"]].map(([v, l]) => (
+                                <div key={v} className={`cbl${frequency === v ? " ck" : ""}`} onClick={() => setFrequency(v)}>{l}</div>
+                            ))}
+                        </div>
+                        <label className="fl">Occurrences (max 12)</label>
+                        <input
+                            className="fi"
+                            type="number"
+                            min={1}
+                            max={12}
+                            value={occurrences}
+                            onChange={e => setOccurrences(Math.min(12, Math.max(1, parseInt(e.target.value) || 1)))}
+                        />
+                    </div>
+                )}
             </div>
+            <div className="fg"><label className="fl">Pay</label><input className="fi" placeholder="e.g. $200 + tips" value={pay} onChange={e => setPay(e.target.value)} /></div>
             <div className="fg"><label className="fl">Type</label>
                 <div className="cbg">
                     {[["gig", "🎸 Gig"], ["openmic", "🎤 Open Mic"], ["residency", "📅 Residency"]].map(([v, l]) => (
@@ -453,7 +619,7 @@ function AddGigModal({ onClose, onAdd }) {
             </div>
             <div className="fg"><label className="fl">Notes for Bands</label><textarea className="fta" placeholder="What kind of music, set length, load-in time, etc." value={notes} onChange={e => setNotes(e.target.value)} /></div>
             <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-                <button className="vbtn1" style={{ flex: 1, padding: 14 }} onClick={go}>Post Opening</button>
+                <button className="vbtn1" style={{ flex: 1, padding: 14 }} onClick={go}>{recurring ? `Post ${Math.min(Math.max(occurrences,1),12)} Openings` : "Post Opening"}</button>
                 <button className="vbtn2" style={{ padding: 14 }} onClick={onClose}>Cancel</button>
             </div>
         </div></div>

@@ -1125,11 +1125,24 @@ function MyApplications({ userId }) {
 
 function Bands({ bands, onB, onCreate, gigOpenings, onApply, onApplyBand, userId, appliedGigIds, onManage }) {
     const [tab, setTab] = useState("discover");
+    const [dismissedGigs, setDismissedGigs] = useState(() => {
+        try { return new Set(JSON.parse(localStorage.getItem("dismissedGigs") || "[]")); }
+        catch { return new Set(); }
+    });
+
+    const dismissGig = id => {
+        const next = new Set(dismissedGigs);
+        next.add(id);
+        setDismissedGigs(next);
+        try { localStorage.setItem("dismissedGigs", JSON.stringify([...next])); } catch {}
+    };
+
     const shown = tab === "mybands"
         ? bands.filter(b => b.isMyBand)
         : tab === "seeking"
             ? bands.filter(b => b.members.some(m => !m.filled))
             : bands;
+    const visibleGigs = gigOpenings.filter(g => !dismissedGigs.has(g.id));
 
     return (
         <div className="pg">
@@ -1168,13 +1181,13 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply, onApplyBand, userId
 
             {tab === "gigs" && (
                 <div>
-                    {gigOpenings.length === 0 ? (
+                    {visibleGigs.length === 0 ? (
                         <div className="es">
                             <div className="ei">🎸</div>
-                            <div className="et">No gig openings yet</div>
-                            <div className="ed">Venues will post paid gig opportunities here. Check back soon.</div>
+                            <div className="et">{gigOpenings.length === 0 ? "No gig openings yet" : "All caught up"}</div>
+                            <div className="ed">{gigOpenings.length === 0 ? "Venues will post paid gig opportunities here. Check back soon." : "You've dismissed all current openings."}</div>
                         </div>
-                    ) : gigOpenings.map(g => (
+                    ) : visibleGigs.map(g => (
                         <div key={g.id} style={{ margin: "0 20px 12px", background: "#fff", borderRadius: 14, border: "2px solid var(--border)", overflow: "hidden" }}>
                             <div style={{ background: "linear-gradient(135deg,#2a1a08,#1a1208)", padding: "14px 16px" }}>
                                 <div style={{ fontFamily: "Playfair Display,serif", fontSize: 17, color: "var(--parchment)", marginBottom: 2 }}>{g.name}</div>
@@ -1200,13 +1213,22 @@ function Bands({ bands, onB, onCreate, gigOpenings, onApply, onApplyBand, userId
                                         ✓ Application Submitted
                                     </button>
                                 ) : (
-                                    <button
-                                        className="btn1"
-                                        style={{ width: "100%", padding: 10, fontSize: 13 }}
-                                        onClick={() => onApply(g)}
-                                    >
-                                        🎸 Apply for This Gig
-                                    </button>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <button
+                                            className="btn1"
+                                            style={{ flex: 1, padding: 10, fontSize: 13 }}
+                                            onClick={() => onApply(g)}
+                                        >
+                                            🎸 Apply for This Gig
+                                        </button>
+                                        <button
+                                            className="btn2"
+                                            style={{ padding: "10px 14px", fontSize: 12 }}
+                                            onClick={() => dismissGig(g.id)}
+                                        >
+                                            Not Interested
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -1230,13 +1252,40 @@ function Events({ events, onJoin, minor, onAdd }) {
         (f === "All Ages" && e.allAges)
     );
 
+    const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const MONTH_IDX = Object.fromEntries(MONS.map((m, i) => [m.toUpperCase(), i]));
+    const now = new Date();
+    const curMonth = now.getMonth();
+    const curYear = now.getFullYear();
+
+    const grouped = {};
+    shown.forEach(e => {
+        const key = e.month || "";
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(e);
+    });
+
+    const sortedKeys = Object.keys(grouped).sort((a, b) => {
+        const ai = MONTH_IDX[a] ?? 12;
+        const bi = MONTH_IDX[b] ?? 12;
+        const ay = ai >= curMonth ? curYear : curYear + 1;
+        const by = bi >= curMonth ? curYear : curYear + 1;
+        return ay !== by ? ay - by : ai - bi;
+    });
+
+    const groupLabel = key => {
+        const idx = MONTH_IDX[key];
+        if (idx === undefined) return key || "Unknown";
+        const year = idx >= curMonth ? curYear : curYear + 1;
+        return `${MONTH_FULL[idx]} ${year}`;
+    };
+
     return (
         <div className="pg">
             <div className="hero" style={{ padding: "20px 20px 16px" }}>
                 <div className="hgreet">Grand Junction, CO</div>
                 <div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Musician Events & <em>Jams</em></div>
             </div>
-            <div className="sh"><div className="st">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</div></div>
             <div className="chips">
                 {["All", "Open Mic", "Jam", "Gig", "Shows", "All Ages"].map(x => (
                     <div key={x} className={`chip${f === x ? " on" : ""}`} onClick={() => setF(x)}>{x}</div>
@@ -1253,9 +1302,15 @@ function Events({ events, onJoin, minor, onAdd }) {
                 </div>
             )}
 
-            <div style={{ paddingTop: 4 }}>
-                {shown.map(e => <ECard key={e.id} ev={e} onJoin={onJoin} minor={minor} />)}
-            </div>
+            {shown.length === 0
+                ? <div className="es"><div className="ei">📅</div><div className="et">No events found</div><div className="ed">Try a different filter or add one below</div></div>
+                : sortedKeys.map(key => (
+                    <div key={key}>
+                        <div className="sh"><div className="st">{groupLabel(key)}</div></div>
+                        {grouped[key].map(e => <ECard key={e.id} ev={e} onJoin={onJoin} minor={minor} />)}
+                    </div>
+                ))
+            }
 
             <div
                 style={{ margin: "0 20px 12px", padding: 16, background: "#fff", borderRadius: 12, border: "2px dashed var(--border)", textAlign: "center", cursor: "pointer" }}
@@ -1723,6 +1778,7 @@ function ManageBandModal({ b, onClose, onSave }) {
     const [genres, setGenres] = useState(b.genres || []);
     const [members, setMembers] = useState(b.members || []);
     const [saving, setSaving] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     const toggleGenre = g =>
         setGenres(p => (p.includes(g) ? p.filter(x => x !== g) : [...p, g]));
@@ -1872,6 +1928,46 @@ function ManageBandModal({ b, onClose, onSave }) {
                         Cancel
                     </button>
                 </div>
+
+                {!confirmDelete ? (
+                    <button
+                        className="btnd"
+                        style={{ width: "100%", marginTop: 10, padding: 12 }}
+                        onClick={() => setConfirmDelete(true)}
+                    >
+                        🗑 Delete Band
+                    </button>
+                ) : (
+                    <div style={{ marginTop: 10, padding: 14, background: "#fce4ec", border: "1px solid #f48fb1", borderRadius: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--rust)", marginBottom: 10 }}>Are you sure? This cannot be undone.</div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                                className="btnd"
+                                style={{ flex: 1, padding: 10 }}
+                                onClick={async () => {
+                                    try {
+                                        const { doc, deleteDoc } = await import("firebase/firestore");
+                                        const { db } = await import("../../lib/firebase");
+                                        await deleteDoc(doc(db, "bands", b.id));
+                                        onSave(null);
+                                        onClose();
+                                    } catch (e) {
+                                        alert(e.message);
+                                    }
+                                }}
+                            >
+                                Confirm Delete
+                            </button>
+                            <button
+                                className="btn2"
+                                style={{ flex: 1, padding: 10 }}
+                                onClick={() => setConfirmDelete(false)}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -2558,7 +2654,10 @@ export default function App({ user, profile }) {
                     <ManageBandModal
                         b={managingBand}
                         onClose={() => setManagingBand(null)}
-                        onSave={updated => setBands(p => p.map(b => b.id === updated.id ? updated : b))}
+                        onSave={updated => updated === null
+                            ? setBands(p => p.filter(b => b.id !== managingBand.id))
+                            : setBands(p => p.map(b => b.id === updated.id ? updated : b))
+                        }
                     />
                 )}
 
