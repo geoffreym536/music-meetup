@@ -269,6 +269,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);}
 .venue-stats{display:flex;gap:20px;}
 .vstat-n{font-family:'Playfair Display',serif;font-size:18px;color:var(--amber);display:block;}
 .vstat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;}
+.scene-feed{padding:12px 20px 0;}
+.scene-item{background:#fff;border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;}
+.scene-ico{width:44px;height:44px;border-radius:10px;background:var(--warm);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.scene-body{flex:1;min-width:0;}
+.scene-kind{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.scene-title{font-weight:500;font-size:14px;color:var(--ink);margin-bottom:3px;}
+.scene-sub{font-size:12px;color:var(--muted);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.scene-time{font-size:11px;color:var(--amber);}
 `;
 
 const INIT_SHOWS = [
@@ -433,13 +441,117 @@ function VenueCard({ v }) {
     );
 }
 
+function timeAgo(ts) {
+    if (!ts) return "";
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    const days = Math.floor(diff / 86400);
+    return days === 1 ? "1 day ago" : `${days} days ago`;
+}
+
 function LiveMusic({ shows, setShows }) {
     const [sub, setSub] = useState("tonight");
     const [gf, setGf] = useState("All");
     const [realVenues, setRealVenues] = useState(VENUES);
+    const [sceneFeed, setSceneFeed] = useState([]);
+    const [sceneLoading, setSceneLoading] = useState(false);
     const tonight = shows.find(s => s.tonight);
     const toggleInt = id => setShows(p => p.map(s => s.id === id ? { ...s, iMe: !s.iMe, interested: s.interested + (s.iMe ? -1 : 1) } : s));
     const upcoming = shows.filter(s => gf === "All" || s.genres.includes(gf));
+
+    useEffect(() => {
+        if (sub !== "scene" || sceneFeed.length > 0) return;
+        const fetchScene = async () => {
+            setSceneLoading(true);
+            try {
+                const { collection, getDocs, query, where } = await import("firebase/firestore");
+                const { db } = await import("../../lib/firebase");
+                const items = [];
+
+                const [evSnap, gigSnap, bandSnap, goSnap, venSnap] = await Promise.all([
+                    getDocs(query(collection(db, "events"), where("type", "in", ["openmic", "jam"]))),
+                    getDocs(query(collection(db, "events"), where("addedBy", "==", "venue"), where("type", "==", "gig"))),
+                    getDocs(collection(db, "bands")),
+                    getDocs(query(collection(db, "gigOpenings"), where("status", "==", "open"))),
+                    getDocs(collection(db, "venues")),
+                ]);
+
+                evSnap.docs.forEach(d => {
+                    const ev = d.data();
+                    items.push({
+                        id: "ev-" + d.id,
+                        emoji: ev.type === "openmic" ? "🎤" : "🥁",
+                        kind: "new event added",
+                        title: ev.name || "Untitled Event",
+                        sub: [ev.venue, ev.month && ev.day ? `${ev.month} ${ev.day}` : null].filter(Boolean).join(" · "),
+                        createdAt: ev.createdAt,
+                    });
+                });
+
+                gigSnap.docs.forEach(d => {
+                    const ev = d.data();
+                    items.push({
+                        id: "show-" + d.id,
+                        emoji: "🎸",
+                        kind: "confirmed show",
+                        title: ev.name || "Venue Show",
+                        sub: [ev.venue, ev.month && ev.day ? `${ev.month} ${ev.day}` : null].filter(Boolean).join(" · "),
+                        createdAt: ev.createdAt,
+                    });
+                });
+
+                bandSnap.docs.forEach(d => {
+                    const b = d.data();
+                    items.push({
+                        id: "band-" + d.id,
+                        emoji: "🎶",
+                        kind: "new band created",
+                        title: b.name || "New Band",
+                        sub: (b.genres || []).join(" · "),
+                        createdAt: b.createdAt,
+                    });
+                });
+
+                goSnap.docs.forEach(d => {
+                    const g = d.data();
+                    items.push({
+                        id: "go-" + d.id,
+                        emoji: "📢",
+                        kind: "gig opening posted",
+                        title: g.role || g.title || "Gig Opening",
+                        sub: g.venueName || g.venue || "",
+                        createdAt: g.createdAt,
+                    });
+                });
+
+                venSnap.docs.forEach(d => {
+                    const v = d.data();
+                    items.push({
+                        id: "ven-" + d.id,
+                        emoji: v.emoji || "🏢",
+                        kind: "new venue joined",
+                        title: v.name || "New Venue",
+                        sub: v.address || "",
+                        createdAt: v.createdAt,
+                    });
+                });
+
+                items.sort((a, b) => {
+                    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return tb - ta;
+                });
+                setSceneFeed(items);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setSceneLoading(false);
+            }
+        };
+        fetchScene();
+    }, [sub]);
 
     useEffect(() => {
         const fetchVenues = async () => {
@@ -471,7 +583,7 @@ function LiveMusic({ shows, setShows }) {
                 <div className="htitle" style={{ fontSize: 22, marginBottom: 0 }}>Live Music & <em>Shows</em></div>
             </div>
             <div className="trow">
-                {[["tonight", "Tonight"], ["upcoming", "Upcoming"], ["venues", "Venues"]].map(([id, l]) => (
+                {[["tonight", "Tonight"], ["upcoming", "Upcoming"], ["venues", "Venues"], ["scene", "Scene"]].map(([id, l]) => (
                     <div key={id} className={`ti${sub === id ? " on" : ""}`} onClick={() => setSub(id)}>{l}</div>
                 ))}
             </div>
@@ -540,6 +652,31 @@ function LiveMusic({ shows, setShows }) {
                         <div style={{ fontSize: 24, marginBottom: 6 }}>🏢</div>
                         <div style={{ fontFamily: "Playfair Display,serif", fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>Add Your Venue</div>
                         <div style={{ fontSize: 12, color: "var(--muted)" }}>List your music nights · reach local musicians</div>
+                    </div>
+                </div>
+            )}
+
+            {sub === "scene" && (
+                <div>
+                    <div style={{ padding: "16px 20px 0", fontSize: 12, color: "var(--muted)" }}>What's happening in the local scene</div>
+                    <div className="scene-feed">
+                        {sceneLoading && (
+                            <div className="es"><div className="ei" style={{ fontSize: 32 }}>⏳</div><div className="et">Loading scene...</div></div>
+                        )}
+                        {!sceneLoading && sceneFeed.length === 0 && (
+                            <div className="es"><div className="ei">🎵</div><div className="et">Nothing yet</div><div className="ed">Activity will appear as the scene grows</div></div>
+                        )}
+                        {sceneFeed.map(item => (
+                            <div key={item.id} className="scene-item">
+                                <div className="scene-ico">{item.emoji}</div>
+                                <div className="scene-body">
+                                    <div className="scene-kind">{item.kind}</div>
+                                    <div className="scene-title">{item.title}</div>
+                                    {item.sub && <div className="scene-sub">{item.sub}</div>}
+                                    <div className="scene-time">{timeAgo(item.createdAt)}</div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
@@ -812,7 +949,7 @@ function Home({ musicians, events, bands, shows, onM, onB, onJoin, filter, setFi
         <div className="pg">
             {minor && <div className="mmbar"><span>🛡️</span><span className="mmtxt">Safe Mode active · Some content restricted for under-18 users</span></div>}
             <div className="hero">
-                <div className="hgreet">Good evening</div>
+                <div className="hgreet">{(() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })()}</div>
                 <div className="htitle">Find your next <em>sound</em></div>
                 <div className="hstats">
                     <div><span className="stn">{musicians.length}</span><span className="stl">Musicians</span></div>
